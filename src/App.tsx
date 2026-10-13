@@ -32,6 +32,10 @@ export interface UserAccount {
     status: string;
     date: string;
   }>;
+  referralCode: string;
+  referredBy?: string | null;
+  referralCount?: number;
+  tenantConversions?: number;
 }
 
 export interface Seeker {
@@ -41,14 +45,31 @@ export interface Seeker {
   readyToBeHired: boolean;
 }
 
-export interface Seeker {
-  id: string;
-  name: string;
-  isOnline: boolean;
-  readyToBeHired: boolean;
-}
-
-const DEFAULT_ACCOUNTS: UserAccount[] = [];
+const DEFAULT_ACCOUNTS: UserAccount[] = [
+  {
+    id: 'acc_admin_timegig',
+    email: 'timegig2026@gmail.com',
+    fullName: 'Admin Matthews',
+    phone: '+27 82 133 4067',
+    createdAt: '2026-01-01',
+    role: 'tenant',
+    isApproved: true,
+    profileStep: 5,
+    selfieImage: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
+    idDocumentImage: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
+    activeSubscription: 'tenant',
+    subStep: 'complete',
+    popImage: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
+    tenantPoPStatus: 'approved',
+    userPoPStatus: 'approved',
+    unitNumber: 'Admin Suite 100',
+    maintenanceList: [],
+    referralCode: 'ADMIN',
+    referredBy: null,
+    referralCount: 0,
+    tenantConversions: 0
+  }
+];
 
 export default function App() {
   const [currentPos, setCurrentPos] = useState<{ lat: number; lng: number; accuracy?: number }>({
@@ -65,12 +86,17 @@ export default function App() {
 
   // Master Registered Accounts Database
   const [accounts, setAccounts] = useState<UserAccount[]>(() => {
-    // Clear old data for fresh start
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('geopulse_')) {
-        localStorage.removeItem(key);
+    const saved = localStorage.getItem('geopulse_accounts');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      } catch {
+        // fallback
       }
-    });
+    }
     return DEFAULT_ACCOUNTS;
   });
 
@@ -78,7 +104,7 @@ export default function App() {
     const savedId = localStorage.getItem('geopulse_current_account_id');
     if (savedId) return savedId;
     const isLog = localStorage.getItem('geopulse_logged_in') === 'true';
-    if (isLog) return 'acc_tenant_matthews';
+    if (isLog) return 'acc_admin_timegig';
     return null;
   });
 
@@ -107,15 +133,22 @@ export default function App() {
   const [accountEditPhone, setAccountEditPhone] = useState(() => activeAccount?.phone || '');
   const [accountEditSavedToast, setAccountEditSavedToast] = useState(false);
 
-  // Detect shared tenant ref from URL (e.g. ?tenantRef=...)
-  const [sharedTenantRef, setSharedTenantRef] = useState<string | null>(() => {
+  // Active Referral Tracking from URL (e.g. ?ref=... or ?tenantRef=...)
+  const [activeReferralCode, setActiveReferralCode] = useState<string | null>(() => {
     try {
       const params = new URLSearchParams(window.location.search);
-      return params.get('tenantRef');
+      const ref = params.get('ref') || params.get('tenantRef');
+      if (ref) {
+        localStorage.setItem('geopulse_active_ref', ref);
+        return ref;
+      }
+      return localStorage.getItem('geopulse_active_ref') || null;
     } catch {
       return null;
     }
   });
+  const [referralBannerDismissed, setReferralBannerDismissed] = useState(false);
+  const [linkCopiedText, setLinkCopiedText] = useState<string | null>(null);
 
   // Persistent Profile & Verification State via localStorage
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -160,7 +193,10 @@ export default function App() {
 
   // Tenant Portal Full-Screen State & Tabs
   const [tenantPortalOpen, setTenantPortalOpen] = useState(false);
-  const [portalActivated, setPortalActivated] = useState(false);
+  const [portalActivated, setPortalActivated] = useState<boolean>(() => {
+    return (activeAccount?.activeSubscription === 'tenant' && activeAccount?.tenantPoPStatus === 'approved') || 
+      activeAccount?.email === 'timegig2026@gmail.com';
+  });
   const [tenantTab, setTenantTab] = useState<'overview' | 'verification' | 'tenant_pop' | 'user_pop'>('overview');
 
   // Seekers State
@@ -233,6 +269,7 @@ export default function App() {
     setTenantPoPStatus(acc.tenantPoPStatus);
     setUserPoPStatus(acc.userPoPStatus);
     setMaintenanceList(acc.maintenanceList || []);
+    setPortalActivated((acc.activeSubscription === 'tenant' && acc.tenantPoPStatus === 'approved') || acc.email === 'timegig2026@gmail.com');
 
     localStorage.setItem('geopulse_current_account_id', acc.id);
     localStorage.setItem('geopulse_logged_in', 'true');
@@ -242,7 +279,25 @@ export default function App() {
   // Helper for Admin or User to update any account in the master accounts list
   const updateAccountData = (accountId: string, updates: Partial<UserAccount>) => {
     setAccounts(prev => {
-      const updated = prev.map(a => a.id === accountId ? { ...a, ...updates } : a);
+      const target = prev.find(a => a.id === accountId);
+      const willBeApprovedTenant = 
+        updates.tenantPoPStatus === 'approved' || 
+        (updates.activeSubscription === 'tenant' && updates.subStep === 'complete');
+      const wasApprovedTenant = target?.activeSubscription === 'tenant' && target?.tenantPoPStatus === 'approved';
+
+      let updated = prev.map(a => a.id === accountId ? { ...a, ...updates } : a);
+
+      // If newly approved as tenant, credit the referrer!
+      if (willBeApprovedTenant && !wasApprovedTenant && target?.referredBy) {
+        const ref = target.referredBy;
+        updated = updated.map(a => {
+          if (a.referralCode?.toLowerCase() === ref.toLowerCase() || (ref.toUpperCase() === 'ADMIN' && a.email === 'timegig2026@gmail.com')) {
+            return { ...a, tenantConversions: (a.tenantConversions || 0) + 1 };
+          }
+          return a;
+        });
+      }
+
       localStorage.setItem('geopulse_accounts', JSON.stringify(updated));
       return updated;
     });
@@ -259,12 +314,18 @@ export default function App() {
       if (updates.email !== undefined) setEmail(updates.email);
       if (updates.isApproved !== undefined) setIsApproved(updates.isApproved);
       if (updates.profileStep !== undefined) setProfileStep(updates.profileStep);
-      if (updates.activeSubscription !== undefined) setActiveSubscription(updates.activeSubscription);
+      if (updates.activeSubscription !== undefined) {
+        setActiveSubscription(updates.activeSubscription);
+        if (updates.activeSubscription === 'tenant') setPortalActivated(true);
+      }
       if (updates.subStep !== undefined) setSubStep(updates.subStep);
       if (updates.popImage !== undefined) setPopImage(updates.popImage);
       if (updates.selfieImage !== undefined) setSelfieImage(updates.selfieImage);
       if (updates.idDocumentImage !== undefined) setIdDocumentImage(updates.idDocumentImage);
-      if (updates.tenantPoPStatus !== undefined) setTenantPoPStatus(updates.tenantPoPStatus);
+      if (updates.tenantPoPStatus !== undefined) {
+        setTenantPoPStatus(updates.tenantPoPStatus);
+        if (updates.tenantPoPStatus === 'approved') setPortalActivated(true);
+      }
       if (updates.userPoPStatus !== undefined) setUserPoPStatus(updates.userPoPStatus);
       if (updates.maintenanceList !== undefined) setMaintenanceList(updates.maintenanceList);
     }
@@ -544,6 +605,9 @@ export default function App() {
       setAuthLoading(false);
 
       const newId = `acc_${Date.now()}`;
+      const newRefCode = `TEN-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+      const referrerCodeToSet = activeReferralCode || 'ADMIN';
+
       const newAcc: UserAccount = {
         id: newId,
         email: cleanEmail,
@@ -562,11 +626,22 @@ export default function App() {
         tenantPoPStatus: 'pending',
         userPoPStatus: 'pending',
         unitNumber: 'Pending Assignment',
-        maintenanceList: []
+        maintenanceList: [],
+        referralCode: newRefCode,
+        referredBy: referrerCodeToSet,
+        referralCount: 0,
+        tenantConversions: 0
       };
 
       setAccounts(prev => {
-        const next = [...prev, newAcc];
+        // Increment referral count on the referrer
+        const updated = prev.map(a => {
+          if (a.referralCode?.toLowerCase() === referrerCodeToSet.toLowerCase() || (referrerCodeToSet.toUpperCase() === 'ADMIN' && a.email === 'timegig2026@gmail.com')) {
+            return { ...a, referralCount: (a.referralCount || 0) + 1 };
+          }
+          return a;
+        });
+        const next = [...updated, newAcc];
         localStorage.setItem('geopulse_accounts', JSON.stringify(next));
         return next;
       });
@@ -579,8 +654,8 @@ export default function App() {
 
       // Direct user straight to profile verification!
       setProfileModalOpen(true);
-      setWelcomeToast(`Your separate account was registered! Welcome ${cleanEmail}`);
-      setTimeout(() => setWelcomeToast(null), 4000);
+      setWelcomeToast(`Joined via referral from ${referrerCodeToSet}! Welcome ${cleanEmail}`);
+      setTimeout(() => setWelcomeToast(null), 4500);
     }, 3000);
   };
 
@@ -636,37 +711,74 @@ export default function App() {
     setTimeout(() => setAccountEditSavedToast(false), 3000);
   };
 
-  // Tenant unique sharing link
-  const tenantShareLink = `${window.location.origin}?tenantRef=${encodeURIComponent(
-    fullName ? fullName.toLowerCase().replace(/\s+/g, '-') : (activeAccount?.fullName ? activeAccount.fullName.toLowerCase().replace(/\s+/g, '-') : 'tenant-unit4b')
-  )}`;
+  // Base application URL
+  const appBaseUrl = typeof window !== 'undefined' 
+    ? `${window.location.origin}${window.location.pathname}`
+    : 'https://ais-pre-uzva6jfyjwao5cunbehskw-339746247390.us-west2.run.app';
 
-  const copyTenantLink = async () => {
+  // Admin Master Share Link
+  const adminShareLink = `${appBaseUrl}?ref=ADMIN`;
+
+  // Tenant personal sharing link
+  const currentTenantRefCode = activeAccount?.referralCode || (email === 'timegig2026@gmail.com' ? 'ADMIN' : (fullName ? fullName.toLowerCase().replace(/\s+/g, '-') : 'TEN-USER'));
+  const tenantShareLink = `${appBaseUrl}?ref=${encodeURIComponent(currentTenantRefCode)}`;
+
+  const copyShareLink = async (linkToCopy: string, label: string = 'Invite Link') => {
     try {
-      await navigator.clipboard.writeText(tenantShareLink);
-      setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2500);
+      await navigator.clipboard.writeText(linkToCopy);
+      setLinkCopiedText(label);
+      setWelcomeToast(`${label} copied to clipboard! Share it with others.`);
+      setTimeout(() => setLinkCopiedText(null), 3000);
+      setTimeout(() => setWelcomeToast(null), 4000);
     } catch {
-      setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2500);
+      setWelcomeToast(`${label} copied!`);
+      setTimeout(() => setWelcomeToast(null), 3000);
     }
   };
 
-  const shareTenantLink = async () => {
+  const triggerNativeShare = async (linkToShare: string, title: string, text: string) => {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `${fullName || 'Tenant'} - Verified Tenant Profile`,
-          text: `Check out my verified tenant lease profile: ${tenantShareLink}`,
-          url: tenantShareLink,
+          title,
+          text,
+          url: linkToShare
         });
       } catch {
-        // user dismissed share dialog
+        // user dismissed dialog
       }
     } else {
-      copyTenantLink();
+      copyShareLink(linkToShare);
     }
   };
+
+  // Referrer Info lookup
+  const referrerAccount = activeReferralCode
+    ? accounts.find(a => a.referralCode?.toLowerCase() === activeReferralCode.toLowerCase() || a.id === activeReferralCode || a.email.toLowerCase() === activeReferralCode.toLowerCase())
+    : null;
+  const referrerDisplayName = activeReferralCode?.toUpperCase() === 'ADMIN' 
+    ? 'Admin (Matthews)' 
+    : referrerAccount?.fullName || referrerAccount?.email || activeReferralCode || 'Admin';
+
+  // Referral Metrics for Current Tenant
+  const tenantDirectInvites = accounts.filter(
+    a => a.referredBy?.toLowerCase() === currentTenantRefCode.toLowerCase()
+  );
+  const tenantConvertedCount = tenantDirectInvites.filter(
+    a => a.activeSubscription === 'tenant' && a.tenantPoPStatus === 'approved'
+  ).length;
+  const tenantDownstreamCount = accounts.filter(a => {
+    const inviter = accounts.find(p => p.id === a.referredBy || p.referralCode?.toLowerCase() === a.referredBy?.toLowerCase());
+    return inviter && inviter.referredBy?.toLowerCase() === currentTenantRefCode.toLowerCase();
+  }).length;
+
+  // Referral Metrics for Admin
+  const adminDirectInvites = accounts.filter(
+    a => a.referredBy?.toUpperCase() === 'ADMIN' || !a.referredBy
+  );
+  const adminConvertedCount = adminDirectInvites.filter(
+    a => a.activeSubscription === 'tenant' && a.tenantPoPStatus === 'approved'
+  ).length;
 
   // Multi-Account Metrics calculation for Admin Overview
   const activeTenantsList = accounts.filter(
@@ -683,6 +795,64 @@ export default function App() {
   const userProfit = activeUsersCount * 29.99;
   const totalProfit = tenantProfit + userProfit;
 
+  // Simulation function for Admin to test and verify the viral referral flow
+  const simulateReferralJoin = () => {
+    const fakeNames = ['Alex Morgan', 'Sarah Connor', 'Michael Scott', 'David Miller', 'Emma Watson'];
+    const fakeName = fakeNames[Math.floor(Math.random() * fakeNames.length)] + ` ${Math.floor(Math.random() * 900 + 100)}`;
+    const fakeEmail = `${fakeName.toLowerCase().replace(/\s+/g, '.')}${Date.now().toString().slice(-4)}@example.com`;
+    const newRefCode = `TEN-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+
+    const newAcc: UserAccount = {
+      id: `acc_sim_${Date.now()}`,
+      email: fakeEmail,
+      fullName: fakeName,
+      phone: '+27 82 ' + Math.floor(1000000 + Math.random() * 9000000),
+      createdAt: new Date().toISOString().split('T')[0],
+      role: 'tenant',
+      isApproved: true,
+      profileStep: 5,
+      selfieImage: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
+      idDocumentImage: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
+      activeSubscription: 'tenant',
+      subStep: 'complete',
+      popImage: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
+      tenantPoPStatus: 'approved',
+      userPoPStatus: 'pending',
+      unitNumber: `Unit ${Math.floor(Math.random() * 20 + 1)}B`,
+      maintenanceList: [],
+      referralCode: newRefCode,
+      referredBy: 'ADMIN',
+      referralCount: 0,
+      tenantConversions: 0
+    };
+
+    setAccounts(prev => {
+      const updated = prev.map(a => {
+        if (a.referralCode === 'ADMIN' || a.email === 'timegig2026@gmail.com') {
+          return {
+            ...a,
+            referralCount: (a.referralCount || 0) + 1,
+            tenantConversions: (a.tenantConversions || 0) + 1
+          };
+        }
+        return a;
+      });
+      const next = [...updated, newAcc];
+      localStorage.setItem('geopulse_accounts', JSON.stringify(next));
+      return next;
+    });
+
+    setWelcomeToast(`Simulated: ${fakeName} joined through admin link, paid "Become a Tenant" & received invite code ${newRefCode}!`);
+    setTimeout(() => setWelcomeToast(null), 5000);
+  };
+
+  // Is Tenant Portal Accessible (subscribed or admin)
+  const isTenantPortalAccessible = 
+    portalActivated || 
+    email === 'timegig2026@gmail.com' || 
+    authEmail === 'timegig2026@gmail.com' || 
+    (activeSubscription === 'tenant' && (tenantPoPStatus === 'approved' || isSpecialUser));
+
   return (
     <div className="w-full h-[100dvh] overflow-hidden relative bg-white font-sans text-slate-900">
       
@@ -694,28 +864,56 @@ export default function App() {
         </div>
       )}
 
-      {/* Shared Tenant Link Banner */}
-      {sharedTenantRef && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-white/95 backdrop-blur-md border border-indigo-200 px-4 py-2.5 rounded-2xl shadow-2xl text-xs flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300 text-slate-900">
-          <div className="w-7 h-7 bg-indigo-100 text-indigo-700 rounded-lg flex items-center justify-center font-bold">
-            <Share2 className="w-3.5 h-3.5" />
+      {/* Referral Invite Banner (Shows when joining via link) */}
+      {activeReferralCode && !referralBannerDismissed && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-white/95 backdrop-blur-md border border-indigo-200 px-4 py-3 rounded-2xl shadow-2xl text-xs flex flex-col sm:flex-row items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300 text-slate-900 max-w-xl">
+          <div className="flex items-center gap-2.5 w-full sm:w-auto">
+            <div className="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-xl flex items-center justify-center font-bold shrink-0">
+              <Share2 className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-slate-500 font-medium">Invited by: </span>
+              <span className="font-bold text-slate-900">{referrerDisplayName}</span>
+              <div className="text-[11px] text-slate-500">Pay "Become a Tenant" to get your own viral invite link!</div>
+            </div>
           </div>
-          <div>
-            <span className="text-slate-500 font-medium">Shared Tenant Profile: </span>
-            <span className="font-bold text-slate-900">{sharedTenantRef}</span>
+          <div className="flex items-center gap-2 ml-auto shrink-0">
+            {!isLoggedIn ? (
+              <button 
+                onClick={() => {
+                  setAuthMode('signup');
+                  setAuthModalOpen(true);
+                }}
+                className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs transition-colors shadow-sm"
+              >
+                Join Now
+              </button>
+            ) : activeSubscription !== 'tenant' || tenantPoPStatus !== 'approved' ? (
+              <button 
+                onClick={() => {
+                  setSelectedSubscription('tenant');
+                  setProfileModalOpen(true);
+                }}
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs transition-colors shadow-sm"
+              >
+                Become a Tenant
+              </button>
+            ) : (
+              <button 
+                onClick={() => setTenantPortalOpen(true)}
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs transition-colors shadow-sm"
+              >
+                My Invite Link
+              </button>
+            )}
+            <button 
+              onClick={() => setReferralBannerDismissed(true)}
+              className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100"
+              title="Dismiss"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          <button 
-            onClick={() => setTenantPortalOpen(true)}
-            className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold text-[11px] transition-colors shadow-sm"
-          >
-            Open Portal
-          </button>
-          <button 
-            onClick={() => setSharedTenantRef(null)}
-            className="text-slate-400 hover:text-slate-700 p-1"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
         </div>
       )}
 
@@ -742,7 +940,7 @@ export default function App() {
 
       {/* Zoom Feature & Satellite Icon (Moved to middle-right, away from search bar) */}
       <div className="absolute right-4 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-2 shadow-xl">
-        {(portalActivated || email === 'timegig2026@gmail.com') && (
+        {isTenantPortalAccessible && (
           <button 
             onClick={() => setTenantPortalOpen(true)}
             className="w-11 h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl flex items-center justify-center border border-emerald-700 shadow-md transition-all focus:outline-none"
@@ -1032,6 +1230,72 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* Personal Referral Link Card in Account Modal */}
+                <div className="p-4 bg-gradient-to-r from-indigo-50 to-emerald-50 border border-indigo-200 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Share2 className="w-4 h-4 text-indigo-600" />
+                      <h5 className="text-xs font-bold text-slate-900">
+                        {isTenantPortalAccessible ? 'Your Personal Tenant Invite Link' : 'Unlock Your Referral Invite Link'}
+                      </h5>
+                    </div>
+                    {isTenantPortalAccessible && (
+                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-md">
+                        Code: {currentTenantRefCode}
+                      </span>
+                    )}
+                  </div>
+
+                  {isTenantPortalAccessible ? (
+                    <>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        Share this link with others. When they join and pay the "Become a Tenant" subscription, they unlock their portal and get their own link!
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-white border border-indigo-200 rounded-xl px-3 py-2 text-[11px] font-mono text-slate-700 truncate select-all">
+                          {tenantShareLink}
+                        </div>
+                        <button 
+                          onClick={() => copyShareLink(tenantShareLink, 'Your Invite Link')}
+                          className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm shrink-0"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>{linkCopiedText === 'Your Invite Link' ? 'Copied' : 'Copy'}</span>
+                        </button>
+                        <button 
+                          onClick={() => triggerNativeShare(tenantShareLink, 'Join my Tenant Network', `Join GeoPulse and unlock your Tenant Portal: ${tenantShareLink}`)}
+                          className="p-2 bg-white hover:bg-slate-100 text-slate-700 rounded-xl border border-indigo-200 shrink-0"
+                          title="Share"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1">
+                        <span>Invited: <strong className="text-slate-800">{tenantDirectInvites.length}</strong></span>
+                        <span>Paid Tenants: <strong className="text-emerald-600">{tenantConvertedCount}</strong></span>
+                        <span>Downstream: <strong className="text-indigo-600">{tenantDownstreamCount}</strong></span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        Subscribe to "Become a Tenant" (R299.99/mo) to receive your own personal link to invite others, earn referral credit, and unlock the Tenant Portal!
+                      </p>
+                      <button 
+                        onClick={() => {
+                          setSelectedSubscription('tenant');
+                          setAuthModalOpen(false);
+                          setProfileModalOpen(true);
+                        }}
+                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-colors shadow-sm flex items-center justify-center gap-1.5"
+                      >
+                        <Home className="w-3.5 h-3.5" />
+                        <span>Subscribe to Become a Tenant (R299.99/mo)</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 {/* Registered Accounts Switcher / Multi-Account Manager */}
                 <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
                   <div className="flex items-center justify-between">
@@ -1246,11 +1510,232 @@ export default function App() {
           <div className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-6 bg-white">
             
             {/* TENANT OVERVIEW TAB */}
-            {tenantTab === 'overview' ? (
+            {tenantTab === 'overview' && (
               <div className="space-y-6 max-w-5xl mx-auto">
-                {/* Overview content placeholder if needed */}
+                {/* Status Hero Card */}
+                <div className="p-6 bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-3xl shadow-lg relative overflow-hidden">
+                  <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-semibold mb-2">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-200" />
+                        <span>Active Tenant Subscription · Unit {activeAccount?.unitNumber || '4B'}</span>
+                      </div>
+                      <h2 className="text-xl sm:text-2xl font-black">Tenant Portal & Referral Center</h2>
+                      <p className="text-emerald-100 text-xs mt-1 max-w-xl">
+                        Welcome, {fullName || activeAccount?.fullName || email || 'Tenant'}! Your subscription is active (R299.99/mo). Share your personal invite link below to invite other users and expand the referral network.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button 
+                        onClick={() => copyShareLink(tenantShareLink, 'Tenant Invite Link')}
+                        className="px-4 py-2.5 bg-white text-emerald-900 hover:bg-emerald-50 rounded-2xl text-xs font-bold shadow-md transition-all flex items-center gap-2"
+                      >
+                        <Copy className="w-4 h-4 text-emerald-700" />
+                        <span>{linkCopiedText === 'Tenant Invite Link' ? 'Copied Link!' : 'Copy Link'}</span>
+                      </button>
+                      <button 
+                        onClick={() => triggerNativeShare(tenantShareLink, 'Join my Tenant Network', `Join GeoPulse and unlock your Tenant Portal: ${tenantShareLink}`)}
+                        className="px-4 py-2.5 bg-emerald-800/80 hover:bg-emerald-800 text-white rounded-2xl text-xs font-bold border border-white/20 transition-all flex items-center gap-2"
+                      >
+                        <Share2 className="w-4 h-4" />
+                        <span>Share</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* VIRAL REFERRAL SYSTEM CARD */}
+                <div className="p-6 bg-white border border-slate-200 rounded-3xl space-y-5 shadow-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 animate-pulse"></span>
+                        <h3 className="text-base font-bold text-slate-900">Your Personal Invite Link (Viral Referral Loop)</h3>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Share this link with others. Any users who join through your link and pay the admin's "Become a Tenant" subscription will receive their own link to invite other users, repeating the cycle over and over again.
+                      </p>
+                    </div>
+                    <span className="px-3 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold self-start sm:self-auto">
+                      Code: {currentTenantRefCode}
+                    </span>
+                  </div>
+
+                  {/* The Link Box */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <div className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 flex items-center gap-2 font-mono text-xs text-slate-700 overflow-x-auto select-all">
+                      <LinkIcon className="w-4 h-4 text-indigo-600 shrink-0" />
+                      <span className="truncate">{tenantShareLink}</span>
+                    </div>
+                    <button 
+                      onClick={() => copyShareLink(tenantShareLink, 'Your Tenant Invite Link')}
+                      className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl text-xs transition-colors shadow-sm flex items-center justify-center gap-2 shrink-0"
+                    >
+                      <Copy className="w-4 h-4" />
+                      <span>{linkCopiedText === 'Your Tenant Invite Link' ? 'Copied Link!' : 'Copy Link'}</span>
+                    </button>
+                    <button 
+                      onClick={() => triggerNativeShare(tenantShareLink, 'Join my Tenant Network', `Join GeoPulse and unlock your Tenant Portal: ${tenantShareLink}`)}
+                      className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded-2xl text-xs transition-colors flex items-center justify-center gap-2 shrink-0"
+                    >
+                      <Share2 className="w-4 h-4" />
+                      <span>Share</span>
+                    </button>
+                  </div>
+
+                  {/* Viral Referral Stats Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
+                      <span className="text-xs text-slate-500 font-medium">Joined Through Your Link</span>
+                      <h4 className="text-2xl font-black text-slate-900">{tenantDirectInvites.length}</h4>
+                      <span className="text-[10px] text-slate-400">Total registered friends</span>
+                    </div>
+
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
+                      <span className="text-xs text-slate-500 font-medium">Paid "Become a Tenant"</span>
+                      <h4 className="text-2xl font-black text-emerald-600">{tenantConvertedCount}</h4>
+                      <span className="text-[10px] text-emerald-600 font-semibold">Active & earned own link</span>
+                    </div>
+
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
+                      <span className="text-xs text-slate-500 font-medium">Downstream Viral Network</span>
+                      <h4 className="text-2xl font-black text-indigo-600">{tenantDownstreamCount}</h4>
+                      <span className="text-[10px] text-indigo-600 font-semibold">Joined through your tenants</span>
+                    </div>
+                  </div>
+
+                  {/* Explainer Steps */}
+                  <div className="p-4 bg-indigo-50/60 border border-indigo-100 rounded-2xl space-y-3">
+                    <h4 className="text-xs font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>How The Referral Cycle Works</span>
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-slate-600">
+                      <div className="p-3 bg-white rounded-xl border border-indigo-100 space-y-1">
+                        <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-bold text-[10px] flex items-center justify-center">1</span>
+                        <div className="font-bold text-slate-900">Share Your Link</div>
+                        <p className="text-[11px] text-slate-500">Send your unique link to other people. The link runs this app with your referral attached.</p>
+                      </div>
+                      <div className="p-3 bg-white rounded-xl border border-indigo-100 space-y-1">
+                        <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-bold text-[10px] flex items-center justify-center">2</span>
+                        <div className="font-bold text-slate-900">They Pay "Become a Tenant"</div>
+                        <p className="text-[11px] text-slate-500">When they pay the admin's subscription (R299.99/mo), their Tenant Portal unlocks.</p>
+                      </div>
+                      <div className="p-3 bg-white rounded-xl border border-indigo-100 space-y-1">
+                        <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-bold text-[10px] flex items-center justify-center">3</span>
+                        <div className="font-bold text-slate-900">They Get Their Own Link!</div>
+                        <p className="text-[11px] text-slate-500">They receive their own invite link to invite other users, repeating this over and over again!</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* List of Referred Users */}
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-slate-900">Users Invited via Your Link</h4>
+                      <span className="text-[11px] text-slate-500">{tenantDirectInvites.length} record(s)</span>
+                    </div>
+
+                    {tenantDirectInvites.length > 0 ? (
+                      <div className="space-y-2">
+                        {tenantDirectInvites.map(u => (
+                          <div key={u.id} className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-[10px]">
+                                {u.fullName ? u.fullName.slice(0, 2).toUpperCase() : u.email.slice(0, 2).toUpperCase()}
+                              </div>
+                              <div>
+                                <h5 className="font-bold text-slate-900">{u.fullName || u.email}</h5>
+                                <p className="text-[10px] text-slate-500">Joined: {u.createdAt} · Referral Code: <span className="font-mono">{u.referralCode}</span></p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              {u.activeSubscription === 'tenant' && u.tenantPoPStatus === 'approved' ? (
+                                <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-lg font-bold text-[10px] inline-flex items-center gap-1">
+                                  <Check className="w-3 h-3" /> Paid Tenant (Has Own Link)
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-[10px] font-semibold">
+                                  Pending Tenant Sub
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-6 bg-slate-50 rounded-2xl text-center text-xs text-slate-400">
+                        No users have joined using your link yet. Copy your link above and share it with others!
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Lease Details & Maintenance */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-5 bg-white border border-slate-200 rounded-3xl space-y-3 shadow-sm">
+                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                      <Building2 className="w-4 h-4 text-indigo-600" />
+                      <span>Lease & Subscription Summary</span>
+                    </h4>
+                    <div className="space-y-2 text-xs">
+                      <div className="flex justify-between py-1 border-b border-slate-100">
+                        <span className="text-slate-500">Subscription Plan:</span>
+                        <span className="font-bold text-indigo-600">Become a Tenant (R299.99/mo)</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-slate-100">
+                        <span className="text-slate-500">Beneficiary:</span>
+                        <span className="font-bold text-slate-900">Admin Matthews (Capitec: 1334067366)</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-slate-100">
+                        <span className="text-slate-500">Reference:</span>
+                        <span className="font-mono font-bold text-blue-600">Ten29</span>
+                      </div>
+                      <div className="flex justify-between py-1">
+                        <span className="text-slate-500">Your Invite Code:</span>
+                        <span className="font-mono font-bold text-emerald-600">{currentTenantRefCode}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Maintenance Request Section */}
+                  <div className="p-5 bg-white border border-slate-200 rounded-3xl space-y-3 shadow-sm">
+                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                      <Wrench className="w-4 h-4 text-indigo-600" />
+                      <span>Unit Maintenance Requests</span>
+                    </h4>
+                    <form onSubmit={addMaintenanceRequest} className="flex gap-2">
+                      <input 
+                        type="text" 
+                        value={newRequestTitle}
+                        onChange={(e) => setNewRequestTitle(e.target.value)}
+                        placeholder="Log new maintenance issue..."
+                        className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                      <button 
+                        type="submit"
+                        className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow-sm"
+                      >
+                        Submit
+                      </button>
+                    </form>
+                    <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                      {maintenanceList.length > 0 ? (
+                        maintenanceList.map(req => (
+                          <div key={req.id} className="p-2 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
+                            <span className="text-slate-800 font-medium truncate">{req.title}</span>
+                            <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-[10px] font-semibold">{req.status}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-[11px] text-slate-400 text-center py-2">No active maintenance issues logged.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
-            ) : null}
+            )}
 
             {/* TENANT VERIFICATION TAB */}
             {tenantTab === 'verification' && (
@@ -1562,11 +2047,180 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="p-6 bg-white border border-slate-200 rounded-2xl space-y-4 shadow-sm">
-                  <h4 className="text-sm font-bold text-slate-900">Platform Analytics Overview</h4>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Live profit tracking for Capitec Bank transfers (Ref: Ten29). Click on <strong>Active Tenants</strong> or <strong>Active Subscription Users</strong> to inspect all subscriber records in a detailed list.
-                  </p>
+                {/* ADMIN MASTER INVITE LINK & VIRAL NETWORK CENTER */}
+                <div className="p-6 bg-white border border-slate-200 rounded-3xl space-y-5 shadow-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse"></span>
+                        <h3 className="text-base font-bold text-slate-900">Admin Master Invite Link (Viral Referral Network)</h3>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        The link runs this app. Any users who join through this link and pay your "Become a Tenant" subscription (R299.99/mo) will receive their own link to invite other users, and that referral users do the same thing over and over again.
+                      </p>
+                    </div>
+                    <span className="px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold self-start sm:self-auto">
+                      Code: ADMIN
+                    </span>
+                  </div>
+
+                  {/* Admin Master Link Box */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <div className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 flex items-center gap-2 font-mono text-xs text-slate-700 overflow-x-auto select-all">
+                      <LinkIcon className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span className="truncate">{adminShareLink}</span>
+                    </div>
+                    <button 
+                      onClick={() => copyShareLink(adminShareLink, 'Admin Master Link')}
+                      className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl text-xs transition-colors shadow-sm flex items-center justify-center gap-2 shrink-0"
+                    >
+                      <Copy className="w-4 h-4" />
+                      <span>{linkCopiedText === 'Admin Master Link' ? 'Copied Link!' : 'Copy Link'}</span>
+                    </button>
+                    <button 
+                      onClick={() => triggerNativeShare(adminShareLink, 'Join GeoPulse as Tenant', `Join GeoPulse and activate your tenant subscription: ${adminShareLink}`)}
+                      className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded-2xl text-xs transition-colors flex items-center justify-center gap-2 shrink-0"
+                    >
+                      <Share2 className="w-4 h-4" />
+                      <span>Share</span>
+                    </button>
+                    <button 
+                      onClick={simulateReferralJoin}
+                      className="px-4 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold rounded-2xl text-xs transition-colors flex items-center justify-center gap-1.5 shrink-0"
+                      title="Simulate a new user joining through this link and paying 'Become a Tenant'"
+                    >
+                      <Sparkles className="w-4 h-4 text-indigo-600" />
+                      <span>Simulate Invite & Payment</span>
+                    </button>
+                  </div>
+
+                  {/* Viral Network Metrics */}
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-2">
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
+                      <span className="text-[11px] text-slate-500 font-medium">Direct Admin Invites</span>
+                      <h4 className="text-xl font-black text-slate-900">{adminDirectInvites.length}</h4>
+                      <span className="text-[10px] text-slate-400">Joined with ?ref=ADMIN</span>
+                    </div>
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
+                      <span className="text-[11px] text-slate-500 font-medium">Paid Tenants Converted</span>
+                      <h4 className="text-xl font-black text-emerald-600">{activeTenantsCount}</h4>
+                      <span className="text-[10px] text-emerald-600 font-semibold">Unlocked their own link</span>
+                    </div>
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
+                      <span className="text-[11px] text-slate-500 font-medium">Viral Sub-Invites (Tier 2+)</span>
+                      <h4 className="text-xl font-black text-indigo-600">
+                        {accounts.filter(a => a.referredBy && a.referredBy !== 'ADMIN').length}
+                      </h4>
+                      <span className="text-[10px] text-indigo-600 font-semibold">Invited by your tenants</span>
+                    </div>
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
+                      <span className="text-[11px] text-slate-500 font-medium">Total Network Size</span>
+                      <h4 className="text-xl font-black text-slate-900">{accounts.length}</h4>
+                      <span className="text-[10px] text-slate-400">All registered members</span>
+                    </div>
+                  </div>
+
+                  {/* VIRAL REFERRAL CHAIN / MULTI-TIER TREE TABLE */}
+                  <div className="space-y-3 pt-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Viral Referral Chain & User Links Directory</h4>
+                        <p className="text-[11px] text-slate-500">Every user's referral code, their referrer, their subscription status, and their generated invite link.</p>
+                      </div>
+                      <span className="text-xs text-slate-500 font-medium">{accounts.length} Total Users in Network</span>
+                    </div>
+
+                    <div className="overflow-x-auto border border-slate-200 rounded-2xl">
+                      <table className="w-full text-left text-xs text-slate-700">
+                        <thead className="bg-slate-50 text-[11px] font-bold text-slate-500 border-b border-slate-200 uppercase">
+                          <tr>
+                            <th className="p-3">User & Email</th>
+                            <th className="p-3">Referrer</th>
+                            <th className="p-3">Their Referral Code</th>
+                            <th className="p-3">Their Generated Invite Link</th>
+                            <th className="p-3">Subscription Status</th>
+                            <th className="p-3">Network Impact</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 bg-white">
+                          {accounts.map(acc => {
+                            const isUserTenant = acc.activeSubscription === 'tenant' && acc.tenantPoPStatus === 'approved';
+                            const userInviteUrl = `${appBaseUrl}?ref=${encodeURIComponent(acc.referralCode || 'USER')}`;
+                            return (
+                              <tr key={acc.id} className="hover:bg-slate-50/80 transition-colors">
+                                <td className="p-3 font-medium">
+                                  <div className="font-bold text-slate-900">{acc.fullName || 'User Profile'}</div>
+                                  <div className="text-[10px] text-slate-400 font-mono">{acc.email}</div>
+                                </td>
+                                <td className="p-3">
+                                  <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${
+                                    acc.referredBy === 'ADMIN' 
+                                      ? 'bg-emerald-100 text-emerald-800' 
+                                      : acc.referredBy 
+                                      ? 'bg-indigo-100 text-indigo-800' 
+                                      : 'bg-slate-100 text-slate-600'
+                                  }`}>
+                                    {acc.referredBy || 'Direct / Root'}
+                                  </span>
+                                </td>
+                                <td className="p-3 font-mono font-bold text-slate-900">
+                                  {acc.referralCode || 'ADMIN'}
+                                </td>
+                                <td className="p-3">
+                                  <div className="flex items-center gap-1.5 max-w-[200px]">
+                                    <span className="font-mono text-[10px] text-slate-500 truncate" title={userInviteUrl}>
+                                      ?ref={acc.referralCode || 'ADMIN'}
+                                    </span>
+                                    <button 
+                                      onClick={() => copyShareLink(userInviteUrl, `${acc.fullName || 'User'} Invite Link`)}
+                                      className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-800 shrink-0"
+                                      title="Copy this link"
+                                    >
+                                      <Copy className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                </td>
+                                <td className="p-3">
+                                  {isUserTenant ? (
+                                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded-lg text-[10px] inline-flex items-center gap-1">
+                                      <Check className="w-3 h-3" /> Paid Tenant (R299.99)
+                                    </span>
+                                  ) : acc.tenantPoPStatus === 'pending' ? (
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="px-2 py-0.5 bg-amber-100 text-amber-800 font-semibold rounded-lg text-[10px]">
+                                        Pending Tenant PoP
+                                      </span>
+                                      <button 
+                                        onClick={() => {
+                                          updateAccountData(acc.id, {
+                                            tenantPoPStatus: 'approved',
+                                            activeSubscription: 'tenant',
+                                            subStep: 'complete'
+                                          });
+                                          setWelcomeToast(`Approved tenant subscription for ${acc.fullName || acc.email}!`);
+                                          setTimeout(() => setWelcomeToast(null), 3000);
+                                        }}
+                                        className="px-2 py-0.5 bg-emerald-600 text-white rounded text-[10px] font-bold hover:bg-emerald-500"
+                                      >
+                                        Approve
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-lg text-[10px]">
+                                      Standard User
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="p-3 text-[11px]">
+                                  <span className="font-bold text-slate-900">{acc.referralCount || 0}</span> invited · <span className="font-bold text-emerald-600">{acc.tenantConversions || 0}</span> tenants
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -2197,6 +2851,7 @@ export default function App() {
                         <div>
                           <h5 className="text-xs font-bold text-slate-900">Become a Tenant</h5>
                           <p className="text-[10px] text-indigo-600 font-bold mt-0.5">R299.99 / month</p>
+                          <span className="text-[9px] text-emerald-600 font-semibold block mt-1">Includes personal invite link!</span>
                         </div>
                       </div>
 
@@ -2210,9 +2865,28 @@ export default function App() {
                         <div>
                           <h5 className="text-xs font-bold text-slate-900">User Subscription</h5>
                           <p className="text-[10px] text-indigo-600 font-bold mt-0.5">R29.99 / month</p>
+                          <span className="text-[9px] text-slate-400 block mt-1">Standard profile access</span>
                         </div>
                       </div>
                     </div>
+
+                    {(isSpecialUser || email === 'timegig2026@gmail.com') && (
+                      <button 
+                        onClick={() => {
+                          setActiveSubscription('tenant');
+                          setTenantPoPStatus('approved');
+                          setSubStep('complete');
+                          setPortalActivated(true);
+                          setProfileModalOpen(false);
+                          setWelcomeToast('timegig2026 privilege: Tenant subscription activated with personal invite link!');
+                          setTimeout(() => setWelcomeToast(null), 3500);
+                        }}
+                        className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-xs transition-colors shadow-sm flex items-center justify-center gap-1.5"
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        <span>Instant Skip & Activate (timegig2026@gmail.com)</span>
+                      </button>
+                    )}
 
                     <button 
                       onClick={() => {
@@ -2563,6 +3237,84 @@ export default function App() {
               </>
             )}
 
+          </div>
+        </div>
+      )}
+
+      {/* SEEKERS FEATURE MODAL (Only online seekers ready to be hired + Search bar) */}
+      {seekersModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-lg p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-slate-900 max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-50 text-indigo-700 rounded-xl flex items-center justify-center border border-indigo-200">
+                  <Search className="w-5 h-5 stroke-[1.5]" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Seekers Directory</h3>
+                  <p className="text-xs text-slate-500">Showing only online seekers ready to be hired</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSeekersModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Same Search Bar as map */}
+            <div className="relative shrink-0">
+              <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+              <input 
+                type="text"
+                value={seekerSearchQuery}
+                onChange={(e) => setSeekerSearchQuery(e.target.value)}
+                placeholder="Search online seekers ready to be hired..."
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 shadow-sm"
+              />
+            </div>
+
+            {/* Online Seekers List */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+              {seekers
+                .filter(s => s.isOnline && s.readyToBeHired)
+                .filter(s => seekerSearchQuery.trim() === '' || s.name.toLowerCase().includes(seekerSearchQuery.toLowerCase()))
+                .map(seeker => (
+                  <div key={seeker.id} className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-indigo-100 text-indigo-700 font-bold rounded-xl flex items-center justify-center text-xs">
+                        {seeker.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs font-bold text-slate-900">{seeker.name}</h4>
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" title="Online" />
+                          <span className="text-[10px] text-emerald-600 font-semibold">Online</span>
+                        </div>
+                        <span className="text-[10px] text-slate-500">Ready to be hired immediately</span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        setWelcomeToast(`Hiring request sent to ${seeker.name}!`);
+                        setTimeout(() => setWelcomeToast(null), 3000);
+                      }}
+                      className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors"
+                    >
+                      Hire
+                    </button>
+                  </div>
+                ))}
+              {seekers
+                .filter(s => s.isOnline && s.readyToBeHired)
+                .filter(s => seekerSearchQuery.trim() === '' || s.name.toLowerCase().includes(seekerSearchQuery.toLowerCase()))
+                .length === 0 && (
+                  <div className="p-8 text-center text-xs text-slate-400">
+                    No online seekers match your search query.
+                  </div>
+                )}
+            </div>
           </div>
         </div>
       )}
