@@ -1,139 +1,196 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Briefcase, Sparkles, X, RefreshCw, MapPin, User, Camera, Upload, 
-  CheckCircle2, ShieldCheck, ArrowRight, ArrowLeft, CreditCard, 
-  Check, Home, Wrench, FileText, DollarSign, Shield, BarChart3, 
-  Users, FileCheck, Receipt, Search, LayoutGrid, Lock, Plus, Minus, Globe, Eye, Building2, TrendingUp, XCircle, ChevronRight,
-  LogIn, LogOut, Share2, Copy, Link as LinkIcon, UserCheck, UserPlus, Settings, Mail, Phone, Calendar, BadgeCheck, CheckCircle, Clock, Edit3, Save
+  Search, Plus, Minus, Globe, Navigation, Loader2, Briefcase, User, 
+  ArrowLeft, ArrowRight, X, Camera, Upload, Mail, Phone, 
+  MapPin, Check, CheckCircle2, Trash2, Sparkles, Building2,
+  Share2, Save, Compass, Key, Shield, ShieldCheck, Copy, 
+  Users, ExternalLink, Network, Award, Zap, HelpCircle, 
+  CheckSquare, FastForward, DollarSign, Layers
 } from 'lucide-react';
 import L from 'leaflet';
+
+export interface SocialLink {
+  id: string;
+  platform: string;
+  url: string;
+}
+
+export interface UserProfileData {
+  avatarImage: string | null;
+  brandLogo: string | null;
+  fullName: string;
+  displayName: string;
+  title: string;
+  bio: string;
+  phone: string;
+  whatsapp: string;
+  primaryEmail: string;
+  secondaryEmail: string;
+  locationAddress: string;
+  locationCity: string;
+  locationLat: number | null;
+  locationLng: number | null;
+  socialLinks: SocialLink[];
+  isCompleted: boolean;
+}
 
 export interface UserAccount {
   id: string;
   email: string;
-  password?: string;
   fullName: string;
-  phone: string;
-  createdAt: string;
-  role: 'tenant' | 'user';
+  role: 'admin' | 'tenant' | 'user';
   isApproved: boolean;
-  profileStep: number;
-  selfieImage: string | null;
-  idDocumentImage: string | null;
-  activeSubscription: 'tenant' | 'user' | null;
-  subStep: 'choose' | 'payment' | 'pop_upload' | 'complete';
-  popImage: string | null;
-  tenantPoPStatus: 'pending' | 'approved' | 'rejected';
-  userPoPStatus: 'pending' | 'approved' | 'rejected';
-  unitNumber?: string;
-  maintenanceList: Array<{
-    id: number;
-    title: string;
-    status: string;
-    date: string;
-  }>;
+  activeSubscription: 'none' | 'tenant';
   referralCode: string;
-  referredBy?: string | null;
-  referralCount?: number;
-  tenantConversions?: number;
+  referredBy: string | null;
+  referralCount: number;
+  tenantConversions: number;
+  earnings: number;
+  createdAt: string;
 }
 
-export interface Seeker {
-  id: string;
-  name: string;
-  isOnline: boolean;
-  readyToBeHired: boolean;
-}
+const DEFAULT_PROFILE: UserProfileData = {
+  avatarImage: null,
+  brandLogo: null,
+  fullName: '',
+  displayName: '',
+  title: '',
+  bio: '',
+  phone: '',
+  whatsapp: '',
+  primaryEmail: '',
+  secondaryEmail: '',
+  locationAddress: '',
+  locationCity: '',
+  locationLat: null,
+  locationLng: null,
+  socialLinks: [
+    { id: '1', platform: 'Instagram', url: '' },
+    { id: '2', platform: 'LinkedIn', url: '' },
+  ],
+  isCompleted: false,
+};
 
-const DEFAULT_ACCOUNTS: UserAccount[] = [
+const SOCIAL_PLATFORMS = [
+  'Instagram',
+  'LinkedIn',
+  'Twitter / X',
+  'Facebook',
+  'GitHub',
+  'YouTube',
+  'TikTok',
+  'WhatsApp',
+  'Website / Portfolio',
+];
+
+const SAMPLE_AVATARS = [
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80',
+];
+
+const SAMPLE_LOGOS = [
+  'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=300&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1614680376593-902f749f7ffc?w=300&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?w=300&auto=format&fit=crop&q=80',
+];
+
+// Initial pre-configured accounts representing viral referral chain
+const INITIAL_ACCOUNTS: UserAccount[] = [
   {
-    id: 'acc_admin_timegig',
+    id: 'acc_admin',
     email: 'timegig2026@gmail.com',
-    fullName: 'Admin Matthews',
-    phone: '+27 82 133 4067',
-    createdAt: '2026-01-01',
-    role: 'tenant',
+    fullName: 'Master Admin (timegig2026)',
+    role: 'admin',
     isApproved: true,
-    profileStep: 5,
-    selfieImage: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
-    idDocumentImage: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
     activeSubscription: 'tenant',
-    subStep: 'complete',
-    popImage: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
-    tenantPoPStatus: 'approved',
-    userPoPStatus: 'approved',
-    unitNumber: 'Admin Suite 100',
-    maintenanceList: [],
     referralCode: 'ADMIN',
     referredBy: null,
-    referralCount: 0,
-    tenantConversions: 0
-  }
+    referralCount: 4,
+    tenantConversions: 2,
+    earnings: 599.98,
+    createdAt: '2026-01-01',
+  },
+  {
+    id: 'acc_user_1',
+    email: 'sarah.j@example.com',
+    fullName: 'Sarah Jenkins',
+    role: 'tenant',
+    isApproved: true,
+    activeSubscription: 'tenant',
+    referralCode: 'TEN-SJ88',
+    referredBy: 'ADMIN',
+    referralCount: 2,
+    tenantConversions: 1,
+    earnings: 299.99,
+    createdAt: '2026-02-10',
+  },
+  {
+    id: 'acc_user_2',
+    email: 'david.miller@example.com',
+    fullName: 'David Miller',
+    role: 'tenant',
+    isApproved: true,
+    activeSubscription: 'tenant',
+    referralCode: 'TEN-DM42',
+    referredBy: 'TEN-SJ88',
+    referralCount: 1,
+    tenantConversions: 0,
+    earnings: 0,
+    createdAt: '2026-02-15',
+  },
 ];
 
 export default function App() {
   const [currentPos, setCurrentPos] = useState<{ lat: number; lng: number; accuracy?: number }>({
     lat: 37.7749,
     lng: -122.4194,
-    accuracy: 0
+    accuracy: 0,
   });
 
   const [isSatellite, setIsSatellite] = useState(false);
-
-  // Top Search Bar State
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  // Master Registered Accounts Database
+  // Tab State: 'gigs' shows Map with all controls; 'seekers' shows empty white screen; 'profile' shows screen-by-screen setup
+  const [activeTab, setActiveTab] = useState<'seekers' | 'gigs' | 'profile'>('gigs');
+
+  // Screen-by-Screen Profile Wizard (1 to 6)
+  const [profileScreen, setProfileScreen] = useState<number>(1);
+  const [isLocatingProfile, setIsLocatingProfile] = useState(false);
+
+  // Accounts state with persistence
   const [accounts, setAccounts] = useState<UserAccount[]>(() => {
-    const saved = localStorage.getItem('geopulse_accounts');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
-      } catch {
-        // fallback
-      }
+    try {
+      const saved = localStorage.getItem('geopulse_accounts');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // fallback
     }
-    return DEFAULT_ACCOUNTS;
+    return INITIAL_ACCOUNTS;
   });
 
-  const [currentAccountId, setCurrentAccountId] = useState<string | null>(() => {
-    const savedId = localStorage.getItem('geopulse_current_account_id');
-    if (savedId) return savedId;
-    const isLog = localStorage.getItem('geopulse_logged_in') === 'true';
-    if (isLog) return 'acc_admin_timegig';
-    return null;
+  // Current active logged-in account (defaults to admin timegig2026@gmail.com for seamless testing)
+  const [currentAccountId, setCurrentAccountId] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem('geopulse_current_account_id');
+      if (saved) return saved;
+    } catch {
+      // fallback
+    }
+    return 'acc_admin';
   });
 
-  // Current active account object
-  const activeAccount = accounts.find(a => a.id === currentAccountId) || null;
+  // Current user account object
+  const currentAccount = accounts.find(a => a.id === currentAccountId) || accounts[0];
 
-  // User Authentication State
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
-    return localStorage.getItem('geopulse_logged_in') === 'true';
-  });
-  const [authEmail, setAuthEmail] = useState<string>(() => {
-    return activeAccount?.email || localStorage.getItem('geopulse_auth_email') || '';
-  });
-  const isSpecialUser = authEmail === 'timegig2026@gmail.com';
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
-  const [inputEmail, setInputEmail] = useState('');
-  const [inputPassword, setInputPassword] = useState('');
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
-  const [welcomeToast, setWelcomeToast] = useState<string | null>(null);
+  // Whether active account has special admin skip privileges
+  const isSpecialUser = currentAccount.email.toLowerCase() === 'timegig2026@gmail.com';
 
-  // Separate Account Editing State (for user to manage their separate profile details)
-  const [accountEditName, setAccountEditName] = useState(() => activeAccount?.fullName || '');
-  const [accountEditPhone, setAccountEditPhone] = useState(() => activeAccount?.phone || '');
-  const [accountEditSavedToast, setAccountEditSavedToast] = useState(false);
-
-  // Active Referral Tracking from URL (e.g. ?ref=... or ?tenantRef=...)
+  // Referral Code from URL query parameters (e.g. ?ref=ADMIN or ?ref=TEN-SJ88)
   const [activeReferralCode, setActiveReferralCode] = useState<string | null>(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -142,105 +199,28 @@ export default function App() {
         localStorage.setItem('geopulse_active_ref', ref);
         return ref;
       }
-      return localStorage.getItem('geopulse_active_ref') || null;
+      return localStorage.getItem('geopulse_active_ref');
     } catch {
       return null;
     }
   });
-  const [referralBannerDismissed, setReferralBannerDismissed] = useState(false);
-  const [linkCopiedText, setLinkCopiedText] = useState<string | null>(null);
 
-  // Persistent Profile & Verification State via localStorage
-  const [profileModalOpen, setProfileModalOpen] = useState(false);
-  const [profileStep, setProfileStep] = useState<number>(() => {
-    if (activeAccount) return activeAccount.profileStep;
-    return localStorage.getItem('geopulse_kyc_approved') === 'true' ? 5 : 1;
+  const [referralBannerVisible, setReferralBannerVisible] = useState<boolean>(() => !!activeReferralCode);
+
+  // Modals
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
+  const [tenantModalOpen, setTenantModalOpen] = useState(false);
+
+  // Profile data with persistence in localStorage
+  const [profileData, setProfileData] = useState<UserProfileData>(() => {
+    try {
+      const saved = localStorage.getItem('geopulse_user_profile');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // fallback
+    }
+    return DEFAULT_PROFILE;
   });
-  const [fullName, setFullName] = useState(() => activeAccount?.fullName || localStorage.getItem('geopulse_fullname') || '');
-  const [phone, setPhone] = useState(() => activeAccount?.phone || localStorage.getItem('geopulse_phone') || '');
-  const [email, setEmail] = useState(() => activeAccount?.email || localStorage.getItem('geopulse_email') || '');
-  const [selfieImage, setSelfieImage] = useState<string | null>(() => activeAccount?.selfieImage || localStorage.getItem('geopulse_selfie'));
-  const [idDocumentImage, setIdDocumentImage] = useState<string | null>(() => activeAccount?.idDocumentImage || localStorage.getItem('geopulse_id_doc'));
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const [isApproved, setIsApproved] = useState<boolean>(() => {
-    if (activeAccount) return activeAccount.isApproved;
-    return localStorage.getItem('geopulse_kyc_approved') === 'true';
-  });
-
-  const [activeSubscription, setActiveSubscription] = useState<'tenant' | 'user' | null>(() => {
-    if (activeAccount) return activeAccount.activeSubscription;
-    return (localStorage.getItem('geopulse_active_subscription') as any) || null;
-  });
-  const [selectedSubscription, setSelectedSubscription] = useState<'tenant' | 'user' | null>(activeSubscription);
-
-  // Payment & Proof of Payment (PoP) State
-  const [subStep, setSubStep] = useState<'choose' | 'payment' | 'pop_upload' | 'complete'>(() => {
-    if (activeAccount) return activeAccount.subStep;
-    return localStorage.getItem('geopulse_pop_submitted') === 'true' ? 'complete' : 'choose';
-  });
-  const [popImage, setPopImage] = useState<string | null>(() => activeAccount?.popImage || localStorage.getItem('geopulse_pop_image'));
-
-  // Approval Status for Tenant PoP and User PoP
-  const [tenantPoPStatus, setTenantPoPStatus] = useState<'pending' | 'approved' | 'rejected'>(() => {
-    if (activeAccount) return activeAccount.tenantPoPStatus;
-    return (localStorage.getItem('geopulse_tenant_pop_status') as any) || 'pending';
-  });
-  const [userPoPStatus, setUserPoPStatus] = useState<'pending' | 'approved' | 'rejected'>(() => {
-    if (activeAccount) return activeAccount.userPoPStatus;
-    return (localStorage.getItem('geopulse_user_pop_status') as any) || 'pending';
-  });
-
-  // Tenant Portal Full-Screen State & Tabs
-  const [tenantPortalOpen, setTenantPortalOpen] = useState(false);
-  const [portalActivated, setPortalActivated] = useState<boolean>(() => {
-    return (activeAccount?.activeSubscription === 'tenant' && activeAccount?.tenantPoPStatus === 'approved') || 
-      activeAccount?.email === 'timegig2026@gmail.com';
-  });
-  const [tenantTab, setTenantTab] = useState<'overview' | 'verification' | 'tenant_pop' | 'user_pop'>('overview');
-
-  // Seekers State
-  const [seekersModalOpen, setSeekersModalOpen] = useState(false);
-  const [seekerSearchQuery, setSeekerSearchQuery] = useState('');
-  const [seekers] = useState<Seeker[]>([
-    { id: '1', name: 'John Doe', isOnline: true, readyToBeHired: true },
-    { id: '2', name: 'Jane Smith', isOnline: true, readyToBeHired: true },
-    { id: '3', name: 'Bob Brown', isOnline: false, readyToBeHired: true },
-    { id: '4', name: 'Alice White', isOnline: true, readyToBeHired: false },
-    { id: '5', name: 'Charlie Green', isOnline: true, readyToBeHired: true },
-  ]);
-
-  const resetApp = () => {
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('geopulse_')) {
-        localStorage.removeItem(key);
-      }
-    });
-    window.location.reload();
-  };
-  const [linkCopied, setLinkCopied] = useState(false);
-  const [maintenanceList, setMaintenanceList] = useState<any[]>(() => {
-    if (activeAccount) return activeAccount.maintenanceList || [];
-    const saved = localStorage.getItem('geopulse_maintenance');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [newRequestTitle, setNewRequestTitle] = useState('');
-
-  // Admin Dashboard State & Tabs
-  const [adminOpen, setAdminOpen] = useState(false);
-  const [adminTab, setAdminTab] = useState<'overview' | 'verification' | 'tenant_pop' | 'user_pop'>('overview');
-
-  // Full-screen Image Lightbox State for Admin & Tenant Portal
-  const [lightboxImg, setLightboxImg] = useState<string | null>(null);
-
-  // Admin Overview List Modals State
-  const [activeTenantsModalOpen, setActiveTenantsModalOpen] = useState(false);
-  const [activeUsersModalOpen, setActiveUsersModalOpen] = useState(false);
-
-  // Camera stream ref & error state
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const [cameraActive, setCameraActive] = useState(false);
-  const [cameraError, setCameraError] = useState<string | null>(null);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -248,129 +228,36 @@ export default function App() {
   const markerRef = useRef<L.Marker | null>(null);
   const circleRef = useRef<L.Circle | null>(null);
 
-  // Synchronize state when switching accounts
-  const syncStateFromAccount = (acc: UserAccount) => {
-    setCurrentAccountId(acc.id);
-    setIsLoggedIn(true);
-    setAuthEmail(acc.email);
-    setFullName(acc.fullName);
-    setPhone(acc.phone);
-    setEmail(acc.email);
-    setAccountEditName(acc.fullName);
-    setAccountEditPhone(acc.phone);
-    setSelfieImage(acc.selfieImage);
-    setIdDocumentImage(acc.idDocumentImage);
-    setIsApproved(acc.isApproved);
-    setProfileStep(acc.profileStep);
-    setActiveSubscription(acc.activeSubscription);
-    setSelectedSubscription(acc.activeSubscription);
-    setSubStep(acc.subStep);
-    setPopImage(acc.popImage);
-    setTenantPoPStatus(acc.tenantPoPStatus);
-    setUserPoPStatus(acc.userPoPStatus);
-    setMaintenanceList(acc.maintenanceList || []);
-    setPortalActivated((acc.activeSubscription === 'tenant' && acc.tenantPoPStatus === 'approved') || acc.email === 'timegig2026@gmail.com');
-
-    localStorage.setItem('geopulse_current_account_id', acc.id);
-    localStorage.setItem('geopulse_logged_in', 'true');
-    localStorage.setItem('geopulse_auth_email', acc.email);
-  };
-
-  // Helper for Admin or User to update any account in the master accounts list
-  const updateAccountData = (accountId: string, updates: Partial<UserAccount>) => {
-    setAccounts(prev => {
-      const target = prev.find(a => a.id === accountId);
-      const willBeApprovedTenant = 
-        updates.tenantPoPStatus === 'approved' || 
-        (updates.activeSubscription === 'tenant' && updates.subStep === 'complete');
-      const wasApprovedTenant = target?.activeSubscription === 'tenant' && target?.tenantPoPStatus === 'approved';
-
-      let updated = prev.map(a => a.id === accountId ? { ...a, ...updates } : a);
-
-      // If newly approved as tenant, credit the referrer!
-      if (willBeApprovedTenant && !wasApprovedTenant && target?.referredBy) {
-        const ref = target.referredBy;
-        updated = updated.map(a => {
-          if (a.referralCode?.toLowerCase() === ref.toLowerCase() || (ref.toUpperCase() === 'ADMIN' && a.email === 'timegig2026@gmail.com')) {
-            return { ...a, tenantConversions: (a.tenantConversions || 0) + 1 };
-          }
-          return a;
-        });
-      }
-
-      localStorage.setItem('geopulse_accounts', JSON.stringify(updated));
-      return updated;
-    });
-
-    if (accountId === currentAccountId) {
-      if (updates.fullName !== undefined) {
-        setFullName(updates.fullName);
-        setAccountEditName(updates.fullName);
-      }
-      if (updates.phone !== undefined) {
-        setPhone(updates.phone);
-        setAccountEditPhone(updates.phone);
-      }
-      if (updates.email !== undefined) setEmail(updates.email);
-      if (updates.isApproved !== undefined) setIsApproved(updates.isApproved);
-      if (updates.profileStep !== undefined) setProfileStep(updates.profileStep);
-      if (updates.activeSubscription !== undefined) {
-        setActiveSubscription(updates.activeSubscription);
-        if (updates.activeSubscription === 'tenant') setPortalActivated(true);
-      }
-      if (updates.subStep !== undefined) setSubStep(updates.subStep);
-      if (updates.popImage !== undefined) setPopImage(updates.popImage);
-      if (updates.selfieImage !== undefined) setSelfieImage(updates.selfieImage);
-      if (updates.idDocumentImage !== undefined) setIdDocumentImage(updates.idDocumentImage);
-      if (updates.tenantPoPStatus !== undefined) {
-        setTenantPoPStatus(updates.tenantPoPStatus);
-        if (updates.tenantPoPStatus === 'approved') setPortalActivated(true);
-      }
-      if (updates.userPoPStatus !== undefined) setUserPoPStatus(updates.userPoPStatus);
-      if (updates.maintenanceList !== undefined) setMaintenanceList(updates.maintenanceList);
-    }
-  };
-
-  // Keep master accounts store and active account in sync
+  // Synchronize accounts to localStorage
   useEffect(() => {
-    if (currentAccountId) {
-      setAccounts(prevAccounts => {
-        const next = prevAccounts.map(acc => {
-          if (acc.id === currentAccountId) {
-            return {
-              ...acc,
-              fullName,
-              phone,
-              email: email || acc.email,
-              selfieImage,
-              idDocumentImage,
-              isApproved,
-              profileStep,
-              activeSubscription,
-              subStep,
-              popImage,
-              tenantPoPStatus,
-              userPoPStatus,
-              maintenanceList,
-              role: (activeSubscription === 'tenant' ? 'tenant' : 'user') as 'tenant' | 'user'
-            };
-          }
-          return acc;
-        });
-        localStorage.setItem('geopulse_accounts', JSON.stringify(next));
-        return next;
-      });
-      localStorage.setItem('geopulse_current_account_id', currentAccountId);
+    try {
+      localStorage.setItem('geopulse_accounts', JSON.stringify(accounts));
+    } catch (e) {
+      console.warn('LocalStorage save failed:', e);
     }
+  }, [accounts]);
 
-    localStorage.setItem('geopulse_logged_in', isLoggedIn ? 'true' : 'false');
-    if (authEmail) localStorage.setItem('geopulse_auth_email', authEmail);
-  }, [
-    currentAccountId, isLoggedIn, fullName, phone, email, selfieImage, 
-    idDocumentImage, isApproved, profileStep, activeSubscription, 
-    subStep, popImage, tenantPoPStatus, userPoPStatus, maintenanceList, authEmail
-  ]);
+  // Synchronize currentAccountId to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('geopulse_current_account_id', currentAccountId);
+    } catch (e) {
+      console.warn('LocalStorage save failed:', e);
+    }
+  }, [currentAccountId]);
 
+  // Base Application URL for generating sharing links
+  const appBaseUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}${window.location.pathname}`
+    : 'https://ais-pre-uzva6jfyjwao5cunbehskw-339746247390.us-west2.run.app';
+
+  // Admin Master Share Link
+  const adminShareLink = `${appBaseUrl}?ref=ADMIN`;
+
+  // Tenant Share Link for current user (or Admin if admin)
+  const tenantShareLink = `${appBaseUrl}?ref=${currentAccount.referralCode || 'ADMIN'}`;
+
+  // Initialize Leaflet Map
   useEffect(() => {
     if (!mapContainerRef.current) return;
     if (mapInstanceRef.current) return;
@@ -387,21 +274,8 @@ export default function App() {
 
     mapInstanceRef.current = map;
 
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          const accuracy = position.coords.accuracy;
-          setCurrentPos({ lat, lng, accuracy });
-          map.setView([lat, lng], 16);
-        },
-        (error) => {
-          console.warn('Geolocation error:', error.message);
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    }
+    // Locate user initially
+    locateUser(false);
 
     return () => {
       map.remove();
@@ -409,25 +283,16 @@ export default function App() {
     };
   }, []);
 
-  const toggleSatellite = () => {
-    if (!mapInstanceRef.current) return;
-    const map = mapInstanceRef.current;
-    
-    if (tileLayerRef.current) {
-      map.removeLayer(tileLayerRef.current);
+  // Invalidate map size when switching back to GiGs tab
+  useEffect(() => {
+    if (activeTab === 'gigs' && mapInstanceRef.current) {
+      setTimeout(() => {
+        mapInstanceRef.current?.invalidateSize();
+      }, 50);
     }
+  }, [activeTab]);
 
-    const newIsSat = !isSatellite;
-    setIsSatellite(newIsSat);
-
-    const url = newIsSat 
-      ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-      : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-
-    const newLayer = L.tileLayer(url, { maxZoom: 19 }).addTo(map);
-    tileLayerRef.current = newLayer;
-  };
-
+  // Update GPS marker on the map
   useEffect(() => {
     if (!mapInstanceRef.current) return;
     const map = mapInstanceRef.current;
@@ -442,14 +307,14 @@ export default function App() {
         </div>
       `,
       iconSize: [24, 24],
-      iconAnchor: [12, 12]
+      iconAnchor: [12, 12],
     });
 
     if (markerRef.current) {
       markerRef.current.setLatLng([lat, lng]);
     } else {
       const marker = L.marker([lat, lng], { icon: pulseIcon }).addTo(map);
-      marker.bindPopup('<b>Your Exact Location</b><br />OpenStreetMap GPS Pin');
+      marker.bindPopup(`<b>Your Location</b><br />Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}`);
       markerRef.current = marker;
     }
 
@@ -463,2861 +328,1678 @@ export default function App() {
           color: '#3b82f6',
           fillColor: '#3b82f6',
           fillOpacity: 0.15,
-          weight: 1
+          weight: 1,
         }).addTo(map);
         circleRef.current = circle;
       }
     }
   }, [currentPos]);
 
+  // Trigger Geolocation
+  const locateUser = (animate: boolean = true) => {
+    if (!navigator.geolocation) {
+      showMessage('Geolocation is not supported by your browser.');
+      return;
+    }
+
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setIsLocating(false);
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const accuracy = position.coords.accuracy;
+        setCurrentPos({ lat, lng, accuracy });
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.setView([lat, lng], 16, { animate });
+        }
+      },
+      (error) => {
+        setIsLocating(false);
+        console.warn('Geolocation error:', error.message);
+        if (animate) {
+          showMessage('Could not retrieve GPS location.');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  // Toggle Map vs Satellite View
+  const toggleSatellite = () => {
+    if (!mapInstanceRef.current) return;
+    const map = mapInstanceRef.current;
+
+    if (tileLayerRef.current) {
+      map.removeLayer(tileLayerRef.current);
+    }
+
+    const nextSatellite = !isSatellite;
+    setIsSatellite(nextSatellite);
+
+    const url = nextSatellite
+      ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+      : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+    const newLayer = L.tileLayer(url, { maxZoom: 19 }).addTo(map);
+    tileLayerRef.current = newLayer;
+  };
+
+  // Place Search via OpenStreetMap Nominatim
   const handlePlaceSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
 
     setIsSearching(true);
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`, {
-        headers: { 'User-Agent': 'GeoPulseOSMApp/1.0' }
-      });
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`,
+        { headers: { 'User-Agent': 'GeoPulseOSMApp/1.0' } }
+      );
       const data = await res.json();
       if (data && data.length > 0) {
         const lat = Number(data[0].lat);
         const lon = Number(data[0].lon);
         setCurrentPos({ lat, lng: lon });
         if (mapInstanceRef.current) {
-          mapInstanceRef.current.setView([lat, lon], 16, { animate: true });
+          mapInstanceRef.current.setView([lat, lon], 15, { animate: true });
         }
       } else {
-        alert('Location not found on OpenStreetMap.');
+        showMessage('Location not found. Try another search.');
       }
     } catch (err) {
       console.error('Search error:', err);
-      alert('Error searching location.');
+      showMessage('Error searching location.');
     } finally {
       setIsSearching(false);
     }
   };
 
-  const startCamera = async () => {
-    setCameraError(null);
-    setCameraActive(true);
+  const showMessage = (msg: string) => {
+    setStatusMessage(msg);
+    setTimeout(() => setStatusMessage(null), 4000);
+  };
+
+  // Copy Link helper
+  const copyToClipboard = async (text: string, label: string) => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
       }
-    } catch (err: any) {
-      console.warn('Camera access error handled:', err);
-      setCameraError('Camera access unavailable or permission denied. Please use file upload or sample selfie.');
-      setCameraActive(false);
+      showMessage(`Copied ${label} to clipboard!`);
+    } catch (err) {
+      console.error('Clipboard copy failed:', err);
+      showMessage(`Link ready: ${text}`);
     }
   };
 
-  const captureSelfie = () => {
-    if (videoRef.current) {
-      const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth || 640;
-      canvas.height = videoRef.current.videoHeight || 480;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg');
-        setSelfieImage(dataUrl);
+  // Native Web Share API helper
+  const triggerNativeShare = async (url: string, title: string, text: string) => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text, url });
+        showMessage('Share sheet opened successfully!');
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          copyToClipboard(url, title);
+        }
       }
-      stopCamera();
+    } else {
+      copyToClipboard(url, title);
     }
   };
 
-  const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-    }
-    setCameraActive(false);
-  };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'selfie' | 'id' | 'pop') => {
+  // File Upload helper for Profile Picture and Logo
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'avatarImage' | 'brandLogo') => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        if (type === 'selfie') {
-          setSelfieImage(reader.result as string);
-        } else if (type === 'id') {
-          setIdDocumentImage(reader.result as string);
-        } else if (type === 'pop') {
-          setPopImage(reader.result as string);
-        }
+        setProfileData(prev => ({
+          ...prev,
+          [field]: reader.result as string,
+        }));
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const useSampleSelfie = () => {
-    setSelfieImage('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80');
-    setCameraError(null);
-  };
-
-  const handleFinalSubmit = () => {
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setIsApproved(true);
-      setProfileStep(5);
-    }, 2000);
-  };
-
-  const addMaintenanceRequest = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newRequestTitle.trim()) return;
-    setMaintenanceList([
-      { id: Date.now(), title: newRequestTitle, status: 'Pending', date: new Date().toLocaleDateString() },
-      ...maintenanceList
-    ]);
-    setNewRequestTitle('');
-  };
-
-  // Sign Up with 3-second circle loading - Creates a BRAND NEW separate account!
-  const handleSignup = (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError(null);
-    const cleanEmail = inputEmail.trim().toLowerCase();
-    if (!cleanEmail || !inputPassword.trim()) {
-      setAuthError('Please provide both email and password.');
+  // Automatic Location Setter for Profile (Reverse geocodes GPS coordinates)
+  const handleAutoSetLocation = () => {
+    if (!navigator.geolocation) {
+      showMessage('Geolocation is not supported.');
       return;
     }
-    if (!termsAccepted) {
-      setAuthError('Please accept the Terms and Conditions to proceed.');
-      return;
-    }
+    setIsLocatingProfile(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setProfileData(prev => ({
+          ...prev,
+          locationLat: lat,
+          locationLng: lng,
+        }));
 
-    // Check if account already exists
-    const existing = accounts.find(a => a.email.toLowerCase() === cleanEmail);
-    if (existing) {
-      setAuthError('An account with this email already exists. Please log in instead or use another email.');
-      return;
-    }
-
-    setAuthLoading(true);
-    // 3 seconds circle loading animation
-    setTimeout(() => {
-      setAuthLoading(false);
-
-      const newId = `acc_${Date.now()}`;
-      const newRefCode = `TEN-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-      const referrerCodeToSet = activeReferralCode || 'ADMIN';
-
-      const newAcc: UserAccount = {
-        id: newId,
-        email: cleanEmail,
-        password: inputPassword,
-        fullName: '',
-        phone: '',
-        createdAt: new Date().toISOString().split('T')[0],
-        role: 'user',
-        isApproved: false,
-        profileStep: 1,
-        selfieImage: null,
-        idDocumentImage: null,
-        activeSubscription: null,
-        subStep: 'choose',
-        popImage: null,
-        tenantPoPStatus: 'pending',
-        userPoPStatus: 'pending',
-        unitNumber: 'Pending Assignment',
-        maintenanceList: [],
-        referralCode: newRefCode,
-        referredBy: referrerCodeToSet,
-        referralCount: 0,
-        tenantConversions: 0
-      };
-
-      setAccounts(prev => {
-        // Increment referral count on the referrer
-        const updated = prev.map(a => {
-          if (a.referralCode?.toLowerCase() === referrerCodeToSet.toLowerCase() || (referrerCodeToSet.toUpperCase() === 'ADMIN' && a.email === 'timegig2026@gmail.com')) {
-            return { ...a, referralCount: (a.referralCount || 0) + 1 };
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+            { headers: { 'User-Agent': 'GeoPulseOSMApp/1.0' } }
+          );
+          const data = await res.json();
+          if (data) {
+            const city = data.address?.city || data.address?.town || data.address?.suburb || 'Local Area';
+            setProfileData(prev => ({
+              ...prev,
+              locationCity: city,
+              locationAddress: data.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+            }));
           }
-          return a;
-        });
-        const next = [...updated, newAcc];
-        localStorage.setItem('geopulse_accounts', JSON.stringify(next));
-        return next;
+        } catch {
+          setProfileData(prev => ({
+            ...prev,
+            locationAddress: `GPS: ${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+            locationCity: 'Current Location',
+          }));
+        } finally {
+          setIsLocatingProfile(false);
+          showMessage('Location automatically set from GPS map coordinates!');
+        }
+      },
+      () => {
+        setIsLocatingProfile(false);
+        showMessage('Could not detect GPS location.');
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
+
+  // Add Dynamic Social Media Link
+  const handleAddSocialLink = () => {
+    const newLink: SocialLink = {
+      id: Date.now().toString(),
+      platform: 'Instagram',
+      url: '',
+    };
+    setProfileData(prev => ({
+      ...prev,
+      socialLinks: [...prev.socialLinks, newLink],
+    }));
+  };
+
+  const handleUpdateSocialLink = (id: string, field: 'platform' | 'url', val: string) => {
+    setProfileData(prev => ({
+      ...prev,
+      socialLinks: prev.socialLinks.map(link => (link.id === id ? { ...link, [field]: val } : link)),
+    }));
+  };
+
+  const handleRemoveSocialLink = (id: string) => {
+    setProfileData(prev => ({
+      ...prev,
+      socialLinks: prev.socialLinks.filter(link => link.id !== id),
+    }));
+  };
+
+  // Save Complete Profile
+  const handleSaveProfile = () => {
+    const updated = { ...profileData, isCompleted: true };
+    setProfileData(updated);
+    localStorage.setItem('geopulse_user_profile', JSON.stringify(updated));
+    showMessage('Profile successfully saved!');
+  };
+
+  // Skip feature for timegig2026@gmail.com on profile wizard
+  const handleAdminSkipProfile = () => {
+    const autoFilled: UserProfileData = {
+      avatarImage: profileData.avatarImage || SAMPLE_AVATARS[0],
+      brandLogo: profileData.brandLogo || SAMPLE_LOGOS[0],
+      fullName: profileData.fullName || 'Admin User (timegig2026)',
+      displayName: profileData.displayName || '@timegig_admin',
+      title: profileData.title || 'Master Platform Administrator',
+      bio: profileData.bio || 'Verified Admin account with full platform skip & management privileges.',
+      phone: profileData.phone || '+1 555-019-2026',
+      whatsapp: profileData.whatsapp || '+1 555-019-2026',
+      primaryEmail: 'timegig2026@gmail.com',
+      secondaryEmail: 'support@timegig.app',
+      locationAddress: profileData.locationAddress || 'Admin Global HQ, Downtown',
+      locationCity: profileData.locationCity || 'San Francisco, CA',
+      locationLat: currentPos.lat,
+      locationLng: currentPos.lng,
+      socialLinks: profileData.socialLinks.length > 0 ? profileData.socialLinks : [
+        { id: '1', platform: 'LinkedIn', url: 'https://linkedin.com/in/timegig' },
+        { id: '2', platform: 'Twitter / X', url: 'https://x.com/timegig' },
+      ],
+      isCompleted: true,
+    };
+    setProfileData(autoFilled);
+    setProfileScreen(6);
+    localStorage.setItem('geopulse_user_profile', JSON.stringify(autoFilled));
+    showMessage('⚡ Admin Skip Applied: Profile auto-completed with timegig2026 privileges!');
+  };
+
+  // "Become a Tenant" Subscription Activation Flow
+  // When a user subscribes:
+  // 1. Their status becomes an approved tenant.
+  // 2. They receive their OWN unique referral link (e.g. TEN-XXXX) to invite others.
+  // 3. The person who referred them (Admin or upstream tenant) gets +1 conversion and credit.
+  const handleSubscribeBecomeTenant = (skipPayment: boolean = false) => {
+    const refCode = currentAccount.referralCode && currentAccount.referralCode !== 'ADMIN'
+      ? currentAccount.referralCode
+      : `TEN-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+    const referrerCode = currentAccount.referredBy || activeReferralCode || 'ADMIN';
+
+    setAccounts(prevAccounts => {
+      return prevAccounts.map(acc => {
+        // Update current user
+        if (acc.id === currentAccount.id) {
+          return {
+            ...acc,
+            role: 'tenant',
+            activeSubscription: 'tenant',
+            isApproved: true,
+            referralCode: refCode,
+            referredBy: acc.referredBy || referrerCode,
+          };
+        }
+        // Reward the referrer
+        if (acc.referralCode === referrerCode || (referrerCode === 'ADMIN' && acc.role === 'admin')) {
+          return {
+            ...acc,
+            tenantConversions: (acc.tenantConversions || 0) + 1,
+            earnings: (acc.earnings || 0) + 299.99,
+          };
+        }
+        return acc;
       });
-      syncStateFromAccount(newAcc);
-
-      setAuthModalOpen(false);
-      setInputEmail('');
-      setInputPassword('');
-      setTermsAccepted(false);
-
-      // Direct user straight to profile verification!
-      setProfileModalOpen(true);
-      setWelcomeToast(`Joined via referral from ${referrerCodeToSet}! Welcome ${cleanEmail}`);
-      setTimeout(() => setWelcomeToast(null), 4500);
-    }, 3000);
-  };
-
-  // Login handler - loads user's separate account data
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError(null);
-    const cleanEmail = inputEmail.trim().toLowerCase();
-    if (!cleanEmail || !inputPassword.trim()) {
-      setAuthError('Please provide your email and password.');
-      return;
-    }
-
-    const matchedAccount = accounts.find(a => a.email.toLowerCase() === cleanEmail);
-    if (!matchedAccount) {
-      setAuthError('No account found with this email. Please sign up to create your separate account.');
-      return;
-    }
-
-    if (matchedAccount.password && matchedAccount.password !== inputPassword) {
-      setAuthError('Incorrect password. Please verify and try again.');
-      return;
-    }
-
-    syncStateFromAccount(matchedAccount);
-    setAuthModalOpen(false);
-    setInputEmail('');
-    setInputPassword('');
-
-    setWelcomeToast(`Welcome back, ${matchedAccount.fullName || matchedAccount.email}!`);
-    setTimeout(() => setWelcomeToast(null), 4000);
-  };
-
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setCurrentAccountId(null);
-    localStorage.setItem('geopulse_logged_in', 'false');
-    localStorage.removeItem('geopulse_current_account_id');
-    setAuthModalOpen(false);
-    setWelcomeToast('You have been logged out.');
-    setTimeout(() => setWelcomeToast(null), 3000);
-  };
-
-  // User save their account changes
-  const handleSaveAccountDetails = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentAccountId) return;
-    updateAccountData(currentAccountId, {
-      fullName: accountEditName.trim(),
-      phone: accountEditPhone.trim()
     });
-    setAccountEditSavedToast(true);
-    setTimeout(() => setAccountEditSavedToast(false), 3000);
-  };
 
-  // Base application URL
-  const appBaseUrl = typeof window !== 'undefined' 
-    ? `${window.location.origin}${window.location.pathname}`
-    : 'https://ais-pre-uzva6jfyjwao5cunbehskw-339746247390.us-west2.run.app';
-
-  // Admin Master Share Link
-  const adminShareLink = `${appBaseUrl}?ref=ADMIN`;
-
-  // Tenant personal sharing link
-  const currentTenantRefCode = activeAccount?.referralCode || (email === 'timegig2026@gmail.com' ? 'ADMIN' : (fullName ? fullName.toLowerCase().replace(/\s+/g, '-') : 'TEN-USER'));
-  const tenantShareLink = `${appBaseUrl}?ref=${encodeURIComponent(currentTenantRefCode)}`;
-
-  const copyShareLink = async (linkToCopy: string, label: string = 'Invite Link') => {
-    try {
-      await navigator.clipboard.writeText(linkToCopy);
-      setLinkCopiedText(label);
-      setWelcomeToast(`${label} copied to clipboard! Share it with others.`);
-      setTimeout(() => setLinkCopiedText(null), 3000);
-      setTimeout(() => setWelcomeToast(null), 4000);
-    } catch {
-      setWelcomeToast(`${label} copied!`);
-      setTimeout(() => setWelcomeToast(null), 3000);
-    }
-  };
-
-  const triggerNativeShare = async (linkToShare: string, title: string, text: string) => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title,
-          text,
-          url: linkToShare
-        });
-      } catch {
-        // user dismissed dialog
-      }
+    if (skipPayment) {
+      showMessage(`⚡ Admin Skip: Subscription activated! Your viral invite code is: ${refCode}`);
     } else {
-      copyShareLink(linkToShare);
+      showMessage(`🎉 Welcome Tenant! Subscription active! Your viral invite code is: ${refCode}`);
     }
   };
 
-  // Referrer Info lookup
-  const referrerAccount = activeReferralCode
-    ? accounts.find(a => a.referralCode?.toLowerCase() === activeReferralCode.toLowerCase() || a.id === activeReferralCode || a.email.toLowerCase() === activeReferralCode.toLowerCase())
-    : null;
-  const referrerDisplayName = activeReferralCode?.toUpperCase() === 'ADMIN' 
-    ? 'Admin (Matthews)' 
-    : referrerAccount?.fullName || referrerAccount?.email || activeReferralCode || 'Admin';
+  // VIRAL SIMULATION ENGINE:
+  // Lets the user test the viral loop in action!
+  // Any simulated user joins via the current referral link, pays "Become a Tenant",
+  // receives their own link, and can invite the next person in the chain!
+  const handleSimulateViralJoin = (inviterCode: string = 'ADMIN') => {
+    const fakeNames = [
+      { name: 'Alex Morgan', email: 'alex.m@example.com' },
+      { name: 'Marcus Vance', email: 'marcus.v@example.com' },
+      { name: 'Elena Rostova', email: 'elena.r@example.com' },
+      { name: 'Kofi Mensah', email: 'kofi.m@example.com' },
+      { name: 'Sophia Chen', email: 'sophia.c@example.com' },
+    ];
+    const picked = fakeNames[Math.floor(Math.random() * fakeNames.length)];
+    const newRefCode = `TEN-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    const newId = `acc_sim_${Date.now()}`;
 
-  // Referral Metrics for Current Tenant
-  const tenantDirectInvites = accounts.filter(
-    a => a.referredBy?.toLowerCase() === currentTenantRefCode.toLowerCase()
-  );
-  const tenantConvertedCount = tenantDirectInvites.filter(
-    a => a.activeSubscription === 'tenant' && a.tenantPoPStatus === 'approved'
-  ).length;
-  const tenantDownstreamCount = accounts.filter(a => {
-    const inviter = accounts.find(p => p.id === a.referredBy || p.referralCode?.toLowerCase() === a.referredBy?.toLowerCase());
-    return inviter && inviter.referredBy?.toLowerCase() === currentTenantRefCode.toLowerCase();
-  }).length;
-
-  // Referral Metrics for Admin
-  const adminDirectInvites = accounts.filter(
-    a => a.referredBy?.toUpperCase() === 'ADMIN' || !a.referredBy
-  );
-  const adminConvertedCount = adminDirectInvites.filter(
-    a => a.activeSubscription === 'tenant' && a.tenantPoPStatus === 'approved'
-  ).length;
-
-  // Multi-Account Metrics calculation for Admin Overview
-  const activeTenantsList = accounts.filter(
-    a => a.activeSubscription === 'tenant' && a.subStep === 'complete' && a.tenantPoPStatus === 'approved'
-  );
-  const activeUsersList = accounts.filter(
-    a => a.activeSubscription === 'user' && a.subStep === 'complete' && a.userPoPStatus === 'approved'
-  );
-
-  const activeTenantsCount = activeTenantsList.length;
-  const activeUsersCount = activeUsersList.length;
-
-  const tenantProfit = activeTenantsCount * 299.99;
-  const userProfit = activeUsersCount * 29.99;
-  const totalProfit = tenantProfit + userProfit;
-
-  // Simulation function for Admin to test and verify the viral referral flow
-  const simulateReferralJoin = () => {
-    const fakeNames = ['Alex Morgan', 'Sarah Connor', 'Michael Scott', 'David Miller', 'Emma Watson'];
-    const fakeName = fakeNames[Math.floor(Math.random() * fakeNames.length)] + ` ${Math.floor(Math.random() * 900 + 100)}`;
-    const fakeEmail = `${fakeName.toLowerCase().replace(/\s+/g, '.')}${Date.now().toString().slice(-4)}@example.com`;
-    const newRefCode = `TEN-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-
-    const newAcc: UserAccount = {
-      id: `acc_sim_${Date.now()}`,
-      email: fakeEmail,
-      fullName: fakeName,
-      phone: '+27 82 ' + Math.floor(1000000 + Math.random() * 9000000),
-      createdAt: new Date().toISOString().split('T')[0],
+    const newSimulatedAccount: UserAccount = {
+      id: newId,
+      email: picked.email,
+      fullName: picked.name,
       role: 'tenant',
       isApproved: true,
-      profileStep: 5,
-      selfieImage: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
-      idDocumentImage: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
       activeSubscription: 'tenant',
-      subStep: 'complete',
-      popImage: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
-      tenantPoPStatus: 'approved',
-      userPoPStatus: 'pending',
-      unitNumber: `Unit ${Math.floor(Math.random() * 20 + 1)}B`,
-      maintenanceList: [],
       referralCode: newRefCode,
-      referredBy: 'ADMIN',
+      referredBy: inviterCode,
       referralCount: 0,
-      tenantConversions: 0
+      tenantConversions: 0,
+      earnings: 0,
+      createdAt: new Date().toISOString().split('T')[0],
     };
 
     setAccounts(prev => {
-      const updated = prev.map(a => {
-        if (a.referralCode === 'ADMIN' || a.email === 'timegig2026@gmail.com') {
+      const updated = prev.map(acc => {
+        if (acc.referralCode === inviterCode || (inviterCode === 'ADMIN' && acc.role === 'admin')) {
           return {
-            ...a,
-            referralCount: (a.referralCount || 0) + 1,
-            tenantConversions: (a.tenantConversions || 0) + 1
+            ...acc,
+            referralCount: (acc.referralCount || 0) + 1,
+            tenantConversions: (acc.tenantConversions || 0) + 1,
+            earnings: (acc.earnings || 0) + 299.99,
           };
         }
-        return a;
+        return acc;
       });
-      const next = [...updated, newAcc];
-      localStorage.setItem('geopulse_accounts', JSON.stringify(next));
-      return next;
+      return [...updated, newSimulatedAccount];
     });
 
-    setWelcomeToast(`Simulated: ${fakeName} joined through admin link, paid "Become a Tenant" & received invite code ${newRefCode}!`);
-    setTimeout(() => setWelcomeToast(null), 5000);
+    showMessage(`🚀 Viral Loop Success: ${picked.name} joined via ${inviterCode}, paid "Become a Tenant" and received their link (${newRefCode})!`);
   };
 
-  // Is Tenant Portal Accessible (subscribed or admin)
-  const isTenantPortalAccessible = 
-    portalActivated || 
-    email === 'timegig2026@gmail.com' || 
-    authEmail === 'timegig2026@gmail.com' || 
-    (activeSubscription === 'tenant' && (tenantPoPStatus === 'approved' || isSpecialUser));
+  // Switch active account (allows switching between Admin and Tenants for testing)
+  const handleSwitchAccount = (accountId: string) => {
+    setCurrentAccountId(accountId);
+    const target = accounts.find(a => a.id === accountId);
+    if (target) {
+      showMessage(`Switched active account to: ${target.fullName} (${target.email})`);
+    }
+  };
+
+  // Quick switch to admin account (timegig2026@gmail.com)
+  const handleSwitchToAdmin = () => {
+    const adminAcc = accounts.find(a => a.email === 'timegig2026@gmail.com') || accounts[0];
+    setCurrentAccountId(adminAcc.id);
+    showMessage('⚡ Switched to Admin Account (timegig2026@gmail.com) with full skip privileges!');
+  };
+
+  // Viral chain calculations
+  const totalNetworkMembers = accounts.length;
+  const totalTenantSubscribers = accounts.filter(a => a.activeSubscription === 'tenant').length;
+  const adminAccount = accounts.find(a => a.role === 'admin') || accounts[0];
+  const totalNetworkRevenue = (accounts.filter(a => a.activeSubscription === 'tenant' && a.role !== 'admin').length) * 299.99;
 
   return (
-    <div className="w-full h-[100dvh] overflow-hidden relative bg-white font-sans text-slate-900">
+    <div className="w-full h-[100dvh] overflow-hidden relative bg-slate-900 font-sans text-slate-900 select-none">
       
-      {/* Welcome Toast Notification Banner */}
-      {welcomeToast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white px-5 py-2.5 rounded-2xl shadow-2xl text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-top-4 duration-300">
-          <Sparkles className="w-4 h-4 text-emerald-400" />
-          <span>{welcomeToast}</span>
-        </div>
-      )}
+      {/* MAP VIEW CONTAINER (Always mounted so map state & Leaflet canvas stay pristine) */}
+      <div ref={mapContainerRef} className="w-full h-full absolute inset-0 z-0" />
 
-      {/* Referral Invite Banner (Shows when joining via link) */}
-      {activeReferralCode && !referralBannerDismissed && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-white/95 backdrop-blur-md border border-indigo-200 px-4 py-3 rounded-2xl shadow-2xl text-xs flex flex-col sm:flex-row items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300 text-slate-900 max-w-xl">
-          <div className="flex items-center gap-2.5 w-full sm:w-auto">
-            <div className="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-xl flex items-center justify-center font-bold shrink-0">
-              <Share2 className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-slate-500 font-medium">Invited by: </span>
-              <span className="font-bold text-slate-900">{referrerDisplayName}</span>
-              <div className="text-[11px] text-slate-500">Pay "Become a Tenant" to get your own viral invite link!</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 ml-auto shrink-0">
-            {!isLoggedIn ? (
-              <button 
-                onClick={() => {
-                  setAuthMode('signup');
-                  setAuthModalOpen(true);
-                }}
-                className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs transition-colors shadow-sm"
-              >
-                Join Now
-              </button>
-            ) : activeSubscription !== 'tenant' || tenantPoPStatus !== 'approved' ? (
-              <button 
-                onClick={() => {
-                  setSelectedSubscription('tenant');
-                  setProfileModalOpen(true);
-                }}
-                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs transition-colors shadow-sm"
-              >
-                Become a Tenant
-              </button>
-            ) : (
-              <button 
-                onClick={() => setTenantPortalOpen(true)}
-                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs transition-colors shadow-sm"
-              >
-                My Invite Link
-              </button>
-            )}
-            <button 
-              onClick={() => setReferralBannerDismissed(true)}
-              className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100"
-              title="Dismiss"
+      {/* TOP SEARCH BAR (Rendered on GiGs Map view) */}
+      {activeTab === 'gigs' && (
+        <div className="absolute top-4 inset-x-4 sm:left-1/2 sm:-translate-x-1/2 sm:w-full sm:max-w-md z-20 animate-in fade-in duration-200">
+          <form onSubmit={handlePlaceSearch} className="relative shadow-xl">
+            <Search className="absolute left-4 top-3.5 w-4 h-4 text-slate-400 stroke-[1.5]" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search any place, city, or address..."
+              className="w-full bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl pl-11 pr-24 py-3 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 shadow-sm"
+            />
+            <button
+              type="submit"
+              disabled={isSearching}
+              className="absolute right-1.5 top-1.5 bottom-1.5 px-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm disabled:opacity-50 flex items-center gap-1"
             >
-              <X className="w-4 h-4" />
+              {isSearching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Search'}
             </button>
+          </form>
+        </div>
+      )}
+
+      {/* FLOATING REFERRAL BANNER (Shown when user joined through a link) */}
+      {activeTab === 'gigs' && referralBannerVisible && activeReferralCode && (
+        <div className="absolute top-20 inset-x-4 sm:left-1/2 sm:-translate-x-1/2 sm:w-full sm:max-w-lg z-20 animate-in slide-in-from-top-3 fade-in duration-200">
+          <div className="bg-gradient-to-r from-blue-900/95 to-indigo-950/95 backdrop-blur-md border border-blue-400/30 text-white p-3.5 rounded-2xl shadow-2xl flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center shrink-0 text-blue-300">
+                <Network className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold truncate">
+                  Joined via Referral Link: <span className="text-blue-300 font-mono">[{activeReferralCode}]</span>
+                </p>
+                <p className="text-[10px] text-slate-300 truncate">
+                  Subscribe to "Become a Tenant" to unlock your own viral link to invite others!
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => setTenantModalOpen(true)}
+                className="px-2.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-[10px] font-bold transition-colors shadow-sm"
+              >
+                Become Tenant
+              </button>
+              <button
+                onClick={() => setReferralBannerVisible(false)}
+                className="p-1 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors"
+                title="Dismiss"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Top Search Bar */}
-      <div className="absolute top-4 inset-x-4 sm:left-1/2 sm:-translate-x-1/2 sm:w-full sm:max-w-md z-30">
-        <form onSubmit={handlePlaceSearch} className="relative shadow-xl">
-          <Search className="absolute left-4 top-3.5 w-4 h-4 text-slate-400 stroke-[1.5]" />
-          <input 
-            type="text" 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search any place or address..."
-            className="w-full bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl pl-11 pr-24 py-3 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 shadow-sm"
-          />
-          <button 
-            type="submit" 
-            disabled={isSearching}
-            className="absolute right-1.5 top-1.5 bottom-1.5 px-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm disabled:opacity-50"
+      {/* FLOATING MAP CONTROLS ON RIGHT (Shown in GiGs Map view) */}
+      {activeTab === 'gigs' && (
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-2.5 shadow-2xl animate-in fade-in duration-200">
+          
+          {/* ZOOM IN (+) FEATURE */}
+          <button
+            onClick={() => mapInstanceRef.current?.zoomIn()}
+            className="w-11 h-11 bg-gradient-to-b from-white to-slate-100 hover:from-slate-50 hover:to-slate-200 text-slate-800 rounded-2xl flex items-center justify-center border border-slate-200 shadow-[0_4px_0_0_#cbd5e1,0_6px_10px_rgba(0,0,0,0.08)] active:translate-y-1 active:shadow-none transition-all focus:outline-none"
+            title="Zoom In"
           >
-            {isSearching ? '...' : 'Search'}
+            <Plus className="w-5 h-5 stroke-[2]" />
           </button>
-        </form>
-      </div>
 
-      {/* Zoom Feature & Satellite Icon (Moved to middle-right, away from search bar) */}
-      <div className="absolute right-4 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-2 shadow-xl">
-        {isTenantPortalAccessible && (
-          <button 
-            onClick={() => setTenantPortalOpen(true)}
-            className="w-11 h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl flex items-center justify-center border border-emerald-700 shadow-md transition-all focus:outline-none"
-            title="Tenant Portal"
+          {/* ZOOM OUT (-) FEATURE */}
+          <button
+            onClick={() => mapInstanceRef.current?.zoomOut()}
+            className="w-11 h-11 bg-gradient-to-b from-white to-slate-100 hover:from-slate-50 hover:to-slate-200 text-slate-800 rounded-2xl flex items-center justify-center border border-slate-200 shadow-[0_4px_0_0_#cbd5e1,0_6px_10px_rgba(0,0,0,0.08)] active:translate-y-1 active:shadow-none transition-all focus:outline-none"
+            title="Zoom Out"
           >
-            <Home className="w-5 h-5 stroke-[1.5]" />
+            <Minus className="w-5 h-5 stroke-[2]" />
           </button>
-        )}
 
-        <button 
-          onClick={() => mapInstanceRef.current?.zoomIn()}
-          className="w-11 h-11 bg-white hover:bg-slate-50 text-slate-700 rounded-2xl flex items-center justify-center border border-slate-200 shadow-md transition-all focus:outline-none"
-          title="Zoom In"
-        >
-          <Plus className="w-5 h-5 stroke-[1.5]" />
-        </button>
-        <button 
-          onClick={() => mapInstanceRef.current?.zoomOut()}
-          className="w-11 h-11 bg-white hover:bg-slate-50 text-slate-700 rounded-2xl flex items-center justify-center border border-slate-200 shadow-md transition-all focus:outline-none"
-          title="Zoom Out"
-        >
-          <Minus className="w-5 h-5 stroke-[1.5]" />
-        </button>
-        <button 
-          onClick={toggleSatellite}
-          className={`w-11 h-11 rounded-2xl flex items-center justify-center border shadow-md transition-all focus:outline-none ${isSatellite ? 'bg-blue-600 border-blue-700 text-white' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`}
-          title="Toggle Satellite View"
-        >
-          <Globe className="w-5 h-5 stroke-[1.5]" />
-        </button>
-
-        {email === 'timegig2026@gmail.com' && (
-          <button 
-            onClick={() => setAdminOpen(true)}
-            className="w-11 h-11 bg-white hover:bg-amber-50 text-slate-700 hover:text-amber-600 rounded-2xl flex items-center justify-center border border-slate-200 shadow-md transition-all focus:outline-none"
-            title="Admin Dashboard"
+          {/* GPS LOCATION (NAVIGATION) */}
+          <button
+            onClick={() => locateUser(true)}
+            disabled={isLocating}
+            className="w-11 h-11 bg-gradient-to-b from-white to-slate-100 hover:from-slate-50 hover:to-slate-200 text-blue-600 rounded-2xl flex items-center justify-center border border-slate-200 shadow-[0_4px_0_0_#cbd5e1,0_6px_10px_rgba(0,0,0,0.08)] active:translate-y-1 active:shadow-none transition-all focus:outline-none"
+            title="Current GPS Location"
           >
-            <Shield className="w-5 h-5 stroke-[1.5]" />
-          </button>
-        )}
-      </div>
-
-      {/* Full screen OpenStreetMap container */}
-      <div ref={mapContainerRef} className="w-full absolute inset-0 bottom-20 z-0" />
-
-      {/* DOCKED WHITE BOTTOM MENU BAR (Smaller, colored icons, selfie on account) */}
-      <div className="fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 py-2 px-4 shadow-xl z-30 flex items-center justify-around">
-        
-        {/* LOGIN / ACCOUNT ICON (With Selfie) */}
-        <button 
-          onClick={() => {
-            setAuthError(null);
-            setAuthModalOpen(true);
-          }}
-          className="flex flex-col items-center gap-0.5 group focus:outline-none"
-          title={isLoggedIn ? 'Account Settings' : 'Log In / Sign Up'}
-        >
-          <div className="w-9 h-9 flex items-center justify-center transition-colors">
-            {isLoggedIn && (isApproved || isSpecialUser) && selfieImage ? (
-              <img src={selfieImage} alt="Profile" className="w-9 h-9 rounded-full object-cover border-2 border-emerald-500" />
-            ) : isLoggedIn ? (
-              <UserCheck className="w-6 h-6 text-emerald-600 stroke-[1.5]" />
+            {isLocating ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
-              <LogIn className="w-6 h-6 text-indigo-600 group-hover:text-indigo-800 stroke-[1.5]" />
+              <Navigation className="w-5 h-5 stroke-[2]" />
             )}
-          </div>
-          <span className="text-[10px] font-semibold text-slate-600 group-hover:text-indigo-600 transition-colors">
-            {isLoggedIn ? 'Account' : 'Login'}
-          </span>
-        </button>
-
-        {/* GIGS ICON IN THE MIDDLE, BIGGER SIZE */}
-        <div className="flex flex-col items-center gap-0.5 -mt-6">
-          <button 
-            onClick={() => {
-              if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition((pos) => {
-                  const lat = pos.coords.latitude;
-                  const lng = pos.coords.longitude;
-                  setCurrentPos({ lat, lng, accuracy: pos.coords.accuracy });
-                  if (mapInstanceRef.current) {
-                    mapInstanceRef.current.setView([lat, lng], 16, { animate: true });
-                  }
-                });
-              }
-            }}
-            className="w-14 h-14 bg-white hover:bg-slate-50 rounded-full flex items-center justify-center transition-all shadow-lg border border-slate-300 focus:outline-none transform hover:scale-105"
-            title="GiGs Location Focus"
-          >
-            <Briefcase className="w-7 h-7 text-blue-600 stroke-[1.5]" />
           </button>
-          <span className="text-[10px] font-bold text-slate-700">GiGs</span>
+
+          {/* SATELLITE TOGGLE (GLOBE) */}
+          <button
+            onClick={toggleSatellite}
+            className={`w-11 h-11 rounded-2xl flex items-center justify-center border transition-all focus:outline-none active:translate-y-1 active:shadow-none ${
+              isSatellite
+                ? 'bg-gradient-to-b from-blue-600 to-indigo-800 text-white border-blue-400 shadow-[0_4px_0_0_#1e1b4b,0_8px_14px_rgba(37,99,235,0.4)]'
+                : 'bg-gradient-to-b from-white to-slate-100 hover:from-slate-50 hover:to-slate-200 text-slate-800 border-slate-200 shadow-[0_4px_0_0_#cbd5e1,0_6px_10px_rgba(0,0,0,0.08)]'
+            }`}
+            title="Toggle Satellite Imagery"
+          >
+            <Globe className="w-5 h-5 stroke-[2]" />
+          </button>
+
         </div>
+      )}
 
-        {/* SEEKERS ICON */}
-        <button 
-          onClick={() => setSeekersModalOpen(true)}
-          className="flex flex-col items-center gap-0.5 group focus:outline-none"
-          title="Seekers"
-        >
-          <div className="w-9 h-9 flex items-center justify-center transition-colors">
-            <Search className="w-6 h-6 text-indigo-600 group-hover:text-indigo-800 stroke-[1.5]" />
-          </div>
-          <span className="text-[10px] font-semibold text-slate-600 group-hover:text-indigo-600 transition-colors">
-            Seekers
-          </span>
-        </button>
-      </div>
+      {/* SEEKERS TAB: EMPTY WHITE SCREEN AS EXPLICITLY REQUESTED */}
+      {activeTab === 'seekers' && (
+        <div className="fixed inset-0 bg-white z-40 flex flex-col animate-in fade-in duration-150">
+          {/* Pristine empty white screen canvas */}
+          <div className="flex-1 w-full bg-white" />
+        </div>
+      )}
 
+      {/* PROFILE TAB: SCREEN-BY-SCREEN GUIDED FLOW */}
+      {activeTab === 'profile' && (
+        <div className="fixed inset-0 bg-slate-50 z-40 overflow-y-auto pb-28 animate-in fade-in duration-200 flex flex-col text-slate-900">
+          
+          {/* Top Sticky Header */}
+          <header className="sticky top-0 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 py-3 z-30 flex items-center justify-between shadow-sm">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setActiveTab('gigs')}
+                className="p-1.5 hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-xl transition-colors flex items-center gap-1 text-xs font-semibold"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span className="hidden sm:inline">GiGs Map</span>
+              </button>
+              <div className="h-4 w-px bg-slate-200 mx-1" />
+              <h2 className="text-sm font-bold text-slate-900">Profile Setup</h2>
+            </div>
 
+            {/* Screen indicator step badge */}
+            <div className="px-2.5 py-1 bg-slate-100 rounded-lg text-[11px] font-semibold text-slate-600">
+              Screen {profileScreen} of 6
+            </div>
+          </header>
 
-      {/* LOGIN / SIGNUP / SEPARATE ACCOUNT MANAGEMENT MODAL */}
-      {authModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className={`bg-white border border-slate-200 rounded-3xl w-full p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-slate-900 ${isLoggedIn ? 'max-w-xl max-h-[88vh] overflow-y-auto' : 'max-w-md'}`}>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center border border-blue-200">
-                  {isLoggedIn ? (
-                    <UserCheck className="w-5 h-5 text-emerald-600 stroke-[1.5]" />
-                  ) : (
-                    <LogIn className="w-5 h-5 text-blue-600 stroke-[1.5]" />
-                  )}
+          <main className="flex-1 max-w-xl w-full mx-auto p-4 sm:p-6 space-y-5">
+            
+            {/* SPECIAL SKIP FEATURE BANNER FOR timegig2026@gmail.com */}
+            {isSpecialUser && (
+              <div className="p-3.5 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-300 rounded-2xl flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-amber-600 shrink-0" />
+                  <div>
+                    <span className="text-xs font-bold text-amber-950 block">timegig2026@gmail.com Special Access</span>
+                    <span className="text-[10px] text-amber-800">You have access to skip features across all profile setup screens.</span>
+                  </div>
                 </div>
+                <button
+                  onClick={handleAdminSkipProfile}
+                  className="px-3 py-1.5 bg-gradient-to-b from-amber-400 to-amber-600 text-slate-950 rounded-xl text-xs font-black shadow-[0_3px_0_0_#b45309] hover:from-amber-300 hover:to-amber-500 active:translate-y-0.5 transition-all shrink-0 flex items-center gap-1"
+                >
+                  <FastForward className="w-3.5 h-3.5" />
+                  <span>Admin Skip & Save</span>
+                </button>
+              </div>
+            )}
+
+            {/* SCREEN 1: PROFILE PICTURE & BRAND LOGO */}
+            {profileScreen === 1 && (
+              <section className="space-y-5 bg-white border border-slate-200 rounded-3xl p-6 shadow-sm animate-in fade-in slide-in-from-right-4 duration-200">
                 <div>
-                  <h3 className="text-base font-bold text-slate-900">
-                    {isLoggedIn ? 'Manage Your Account' : authMode === 'signup' ? 'Create a Separate Account' : 'Welcome Back'}
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    {isLoggedIn 
-                      ? 'Separate profile, KYC records, and subscription settings' 
-                      : authMode === 'signup' 
-                      ? 'Register your separate account with email and password' 
-                      : 'Login to access your separate account'}
+                  <span className="text-[10px] font-bold tracking-wider text-indigo-600 uppercase">Screen 1 of 6</span>
+                  <h3 className="text-lg font-bold text-slate-900">Profile Picture & Brand Logo</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Upload your individual user photo and company or brand logo.</p>
+                </div>
+
+                {/* Live Combined Avatar + Logo Preview */}
+                <div className="flex items-center justify-center py-2">
+                  <div className="relative">
+                    {profileData.avatarImage ? (
+                      <img
+                        src={profileData.avatarImage}
+                        alt="Avatar Preview"
+                        className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg ring-2 ring-indigo-500/20"
+                      />
+                    ) : (
+                      <div className="w-24 h-24 rounded-full bg-slate-100 border-4 border-white shadow-md flex items-center justify-center text-slate-400">
+                        <User className="w-10 h-10 stroke-[1.5]" />
+                      </div>
+                    )}
+                    {/* Brand Logo Badge Overlay */}
+                    {profileData.brandLogo && (
+                      <div className="absolute -bottom-1 -right-1 w-9 h-9 rounded-full bg-white p-0.5 border-2 border-white shadow-md">
+                        <img
+                          src={profileData.brandLogo}
+                          alt="Logo Badge"
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 1. User Profile Picture */}
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <label className="block text-xs font-bold text-slate-800">1. User Profile Picture</label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold cursor-pointer shadow-sm flex items-center gap-1.5 transition-colors">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Upload Photo</span>
+                      <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'avatarImage')} className="hidden" />
+                    </label>
+                    {profileData.avatarImage && (
+                      <button
+                        onClick={() => setProfileData(p => ({ ...p, avatarImage: null }))}
+                        className="px-3 py-2 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 rounded-xl text-xs font-semibold transition-colors"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Sample Avatars Selector */}
+                  <div className="pt-2">
+                    <span className="text-[10px] text-slate-400 block mb-1.5">Or choose a sample avatar:</span>
+                    <div className="flex items-center gap-2.5">
+                      {SAMPLE_AVATARS.map((url, i) => (
+                        <img
+                          key={i}
+                          src={url}
+                          alt="Sample"
+                          onClick={() => setProfileData(p => ({ ...p, avatarImage: url }))}
+                          className={`w-10 h-10 rounded-full object-cover cursor-pointer border-2 transition-all hover:scale-105 ${
+                            profileData.avatarImage === url ? 'border-indigo-600 ring-2 ring-indigo-300' : 'border-transparent'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Brand / Company Logo */}
+                <div className="space-y-2 pt-3 border-t border-slate-100">
+                  <label className="block text-xs font-bold text-slate-800">2. Company / Brand Logo</label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold cursor-pointer shadow-sm flex items-center gap-1.5 transition-colors">
+                      <Building2 className="w-3.5 h-3.5" />
+                      <span>Upload Brand Logo</span>
+                      <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'brandLogo')} className="hidden" />
+                    </label>
+                    {profileData.brandLogo && (
+                      <button
+                        onClick={() => setProfileData(p => ({ ...p, brandLogo: null }))}
+                        className="px-3 py-2 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 rounded-xl text-xs font-semibold transition-colors"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Sample Logos Selector */}
+                  <div className="pt-2">
+                    <span className="text-[10px] text-slate-400 block mb-1.5">Or choose a sample logo:</span>
+                    <div className="flex items-center gap-2.5">
+                      {SAMPLE_LOGOS.map((url, i) => (
+                        <img
+                          key={i}
+                          src={url}
+                          alt="Sample Logo"
+                          onClick={() => setProfileData(p => ({ ...p, brandLogo: url }))}
+                          className={`w-10 h-10 rounded-xl object-cover cursor-pointer border-2 transition-all hover:scale-105 ${
+                            profileData.brandLogo === url ? 'border-indigo-600 ring-2 ring-indigo-300' : 'border-slate-200'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 flex items-center justify-between">
+                  {isSpecialUser ? (
+                    <button
+                      onClick={handleAdminSkipProfile}
+                      className="text-xs text-amber-700 font-bold hover:underline flex items-center gap-1"
+                    >
+                      <Zap className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Skip to Complete</span>
+                    </button>
+                  ) : <div />}
+                  <button
+                    onClick={() => setProfileScreen(2)}
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-md flex items-center gap-2 transition-all"
+                  >
+                    <span>Next: Basic Information</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {/* SCREEN 2: BASIC INFORMATION */}
+            {profileScreen === 2 && (
+              <section className="space-y-4 bg-white border border-slate-200 rounded-3xl p-6 shadow-sm animate-in fade-in slide-in-from-right-4 duration-200">
+                <div>
+                  <span className="text-[10px] font-bold tracking-wider text-indigo-600 uppercase">Screen 2 of 6</span>
+                  <h3 className="text-lg font-bold text-slate-900">Basic Information</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Introduce yourself and your professional identity.</p>
+                </div>
+
+                <div className="space-y-3.5 pt-1">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Full Legal Name</label>
+                    <input
+                      type="text"
+                      value={profileData.fullName}
+                      onChange={(e) => setProfileData(p => ({ ...p, fullName: e.target.value }))}
+                      placeholder="e.g. Alex Matthews"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600 focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Display Name / Handle</label>
+                    <input
+                      type="text"
+                      value={profileData.displayName}
+                      onChange={(e) => setProfileData(p => ({ ...p, displayName: e.target.value }))}
+                      placeholder="e.g. @alexmatthews"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600 focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Professional Title / Headline</label>
+                    <input
+                      type="text"
+                      value={profileData.title}
+                      onChange={(e) => setProfileData(p => ({ ...p, title: e.target.value }))}
+                      placeholder="e.g. Certified Property Manager & Surveyor"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600 focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Bio / About</label>
+                    <textarea
+                      rows={3}
+                      value={profileData.bio}
+                      onChange={(e) => setProfileData(p => ({ ...p, bio: e.target.value }))}
+                      placeholder="Tell people about your services, experience, and background..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-600 focus:bg-white resize-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 flex items-center justify-between border-t border-slate-100">
+                  <button
+                    onClick={() => setProfileScreen(1)}
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span>Back</span>
+                  </button>
+                  <button
+                    onClick={() => setProfileScreen(3)}
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-md flex items-center gap-2 transition-all"
+                  >
+                    <span>Next: Contact & Email</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {/* SCREEN 3: CONTACT INFORMATION & EMAIL INFORMATION */}
+            {profileScreen === 3 && (
+              <section className="space-y-4 bg-white border border-slate-200 rounded-3xl p-6 shadow-sm animate-in fade-in slide-in-from-right-4 duration-200">
+                <div>
+                  <span className="text-[10px] font-bold tracking-wider text-indigo-600 uppercase">Screen 3 of 6</span>
+                  <h3 className="text-lg font-bold text-slate-900">Contact & Email Information</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Add your phone numbers and email channels so users can reach you.</p>
+                </div>
+
+                <div className="space-y-3.5 pt-1">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Primary Phone Number</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={profileData.phone}
+                      onChange={(e) => setProfileData(p => ({ ...p, phone: e.target.value }))}
+                      placeholder="+27 82 123 4567"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600 focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>WhatsApp / Alternative Phone</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={profileData.whatsapp}
+                      onChange={(e) => setProfileData(p => ({ ...p, whatsapp: e.target.value }))}
+                      placeholder="+27 82 987 6543"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600 focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Primary Email Address</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={profileData.primaryEmail}
+                      onChange={(e) => setProfileData(p => ({ ...p, primaryEmail: e.target.value }))}
+                      placeholder="alex@example.com"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600 focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Secondary / Business Email</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={profileData.secondaryEmail}
+                      onChange={(e) => setProfileData(p => ({ ...p, secondaryEmail: e.target.value }))}
+                      placeholder="business@example.com"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600 focus:bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 flex items-center justify-between border-t border-slate-100">
+                  <button
+                    onClick={() => setProfileScreen(2)}
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span>Back</span>
+                  </button>
+                  <button
+                    onClick={() => setProfileScreen(4)}
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-md flex items-center gap-2 transition-all"
+                  >
+                    <span>Next: Set Location</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {/* SCREEN 4: LOCATION SETTING (AUTO GPS OR MANUAL) */}
+            {profileScreen === 4 && (
+              <section className="space-y-4 bg-white border border-slate-200 rounded-3xl p-6 shadow-sm animate-in fade-in slide-in-from-right-4 duration-200">
+                <div>
+                  <span className="text-[10px] font-bold tracking-wider text-indigo-600 uppercase">Screen 4 of 6</span>
+                  <h3 className="text-lg font-bold text-slate-900">Location Settings</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Set your operating location manually, or have the map set it automatically via GPS coordinates.
                   </p>
                 </div>
+
+                {/* 3D ONE-CLICK AUTOMATIC GPS SETTER */}
+                <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-blue-950 flex items-center gap-1.5">
+                      <Compass className="w-4 h-4 text-blue-600" />
+                      <span>Automatic Map Detection</span>
+                    </span>
+                    <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-md">
+                      Instant GPS
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Tap below to let the map automatically detect your current location and fill in your address coordinates.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleAutoSetLocation}
+                    disabled={isLocatingProfile}
+                    className="w-full py-3 bg-gradient-to-b from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 active:translate-y-0.5 text-white rounded-xl text-xs font-bold shadow-[0_4px_0_0_#1e40af] transition-all flex items-center justify-center gap-2"
+                  >
+                    {isLocatingProfile ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Navigation className="w-4 h-4 stroke-[2]" />
+                    )}
+                    <span>{isLocatingProfile ? 'Detecting Location...' : 'Set Location Automatically via Map (GPS)'}</span>
+                  </button>
+                </div>
+
+                {/* Location fields */}
+                <div className="space-y-3 pt-2">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Full Street Address / Location</label>
+                    <input
+                      type="text"
+                      value={profileData.locationAddress}
+                      onChange={(e) => setProfileData(p => ({ ...p, locationAddress: e.target.value }))}
+                      placeholder="e.g. 124 Main Street, Waterfront"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600 focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">City / Region / Country</label>
+                    <input
+                      type="text"
+                      value={profileData.locationCity}
+                      onChange={(e) => setProfileData(p => ({ ...p, locationCity: e.target.value }))}
+                      placeholder="e.g. Cape Town, Western Cape"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600 focus:bg-white"
+                    />
+                  </div>
+
+                  {/* Coordinates pill */}
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
+                    <span className="text-slate-500 flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>GPS Coordinates:</span>
+                    </span>
+                    <span className="font-mono text-slate-900 font-semibold">
+                      {profileData.locationLat !== null && profileData.locationLng !== null
+                        ? `${profileData.locationLat.toFixed(5)}°, ${profileData.locationLng.toFixed(5)}°`
+                        : `${currentPos.lat.toFixed(5)}°, ${currentPos.lng.toFixed(5)}° (Default)`}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-4 flex items-center justify-between border-t border-slate-100">
+                  <button
+                    onClick={() => setProfileScreen(3)}
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span>Back</span>
+                  </button>
+                  <button
+                    onClick={() => setProfileScreen(5)}
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-md flex items-center gap-2 transition-all"
+                  >
+                    <span>Next: Social Media Links</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {/* SCREEN 5: SOCIAL MEDIA LINKS (DYNAMIC - ADD MORE) */}
+            {profileScreen === 5 && (
+              <section className="space-y-4 bg-white border border-slate-200 rounded-3xl p-6 shadow-sm animate-in fade-in slide-in-from-right-4 duration-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold tracking-wider text-indigo-600 uppercase">Screen 5 of 6</span>
+                    <h3 className="text-lg font-bold text-slate-900">Social Media Links</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Connect your platforms. You can add as many links as you want.</p>
+                  </div>
+                  <button
+                    onClick={handleAddSocialLink}
+                    className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold flex items-center gap-1 transition-colors shadow-sm"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Link</span>
+                  </button>
+                </div>
+
+                {/* Dynamic Social Links List */}
+                <div className="space-y-3 pt-1">
+                  {profileData.socialLinks.map((link) => (
+                    <div key={link.id} className="p-3 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                      <div className="w-full sm:w-44 shrink-0">
+                        <select
+                          value={link.platform}
+                          onChange={(e) => handleUpdateSocialLink(link.id, 'platform', e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-indigo-600"
+                        >
+                          {SOCIAL_PLATFORMS.map(p => (
+                            <option key={p} value={p}>{p}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="flex-1">
+                        <input
+                          type="url"
+                          value={link.url}
+                          onChange={(e) => handleUpdateSocialLink(link.id, 'url', e.target.value)}
+                          placeholder={`https://${link.platform.toLowerCase().replace(/[^a-z]/g, '')}.com/yourhandle`}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                        />
+                      </div>
+
+                      <button
+                        onClick={() => handleRemoveSocialLink(link.id)}
+                        className="p-2 hover:bg-rose-100 text-slate-400 hover:text-rose-600 rounded-xl transition-colors self-end sm:self-center"
+                        title="Delete link"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {profileData.socialLinks.length === 0 && (
+                    <div className="p-8 text-center bg-slate-50 border border-dashed border-slate-200 rounded-2xl text-xs text-slate-400">
+                      No social links added yet. Tap "+ Add Link" above to add your first profile.
+                    </div>
+                  )}
+
+                  {/* Quick Add Button */}
+                  <button
+                    type="button"
+                    onClick={handleAddSocialLink}
+                    className="w-full py-2.5 border-2 border-dashed border-indigo-200 hover:border-indigo-400 rounded-2xl text-indigo-700 text-xs font-semibold flex items-center justify-center gap-1.5 bg-indigo-50/50 hover:bg-indigo-50 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Another Social Media Link</span>
+                  </button>
+                </div>
+
+                <div className="pt-4 flex items-center justify-between border-t border-slate-100">
+                  <button
+                    onClick={() => setProfileScreen(4)}
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span>Back</span>
+                  </button>
+                  <button
+                    onClick={() => setProfileScreen(6)}
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-md flex items-center gap-2 transition-all"
+                  >
+                    <span>Next: Review & Save</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {/* SCREEN 6: REVIEW PROFILE & SAVE */}
+            {profileScreen === 6 && (
+              <section className="space-y-5 bg-white border border-slate-200 rounded-3xl p-6 shadow-sm animate-in fade-in slide-in-from-right-4 duration-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold tracking-wider text-emerald-600 uppercase">Screen 6 of 6 · Final</span>
+                    <h3 className="text-lg font-bold text-slate-900">Review & Save Profile</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Verify your details screen by screen and click save to finalize.</p>
+                  </div>
+                  {profileData.isCompleted && (
+                    <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-lg flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Saved
+                    </span>
+                  )}
+                </div>
+
+                {/* Profile Card Preview */}
+                <div className="p-5 bg-gradient-to-br from-slate-50 to-indigo-50/40 border border-slate-200 rounded-2xl space-y-4">
+                  {/* Avatar + Brand Logo + Header */}
+                  <div className="flex items-center gap-3.5">
+                    <div className="relative shrink-0">
+                      {profileData.avatarImage ? (
+                        <img
+                          src={profileData.avatarImage}
+                          alt="Avatar"
+                          className="w-16 h-16 rounded-2xl object-cover border-2 border-white shadow-md"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-lg shadow-sm">
+                          {profileData.fullName ? profileData.fullName.slice(0, 2).toUpperCase() : 'USER'}
+                        </div>
+                      )}
+                      {profileData.brandLogo && (
+                        <img
+                          src={profileData.brandLogo}
+                          alt="Brand Logo"
+                          className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border border-white shadow object-cover bg-white"
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="text-base font-bold text-slate-900">{profileData.fullName || 'Name Not Set'}</h4>
+                      <p className="text-xs font-semibold text-indigo-600">{profileData.displayName || '@username'}</p>
+                      <p className="text-[11px] text-slate-500">{profileData.title || 'Professional Title'}</p>
+                    </div>
+                  </div>
+
+                  {profileData.bio && (
+                    <p className="text-xs text-slate-600 leading-relaxed bg-white/70 p-3 rounded-xl border border-slate-100">
+                      {profileData.bio}
+                    </p>
+                  )}
+
+                  {/* Contact & Email Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
+                    <div className="p-2.5 bg-white rounded-xl border border-slate-100 space-y-0.5">
+                      <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
+                        <Phone className="w-3 h-3 text-indigo-600" /> Phone
+                      </span>
+                      <p className="font-semibold text-slate-900">{profileData.phone || 'None provided'}</p>
+                    </div>
+
+                    <div className="p-2.5 bg-white rounded-xl border border-slate-100 space-y-0.5">
+                      <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
+                        <Mail className="w-3 h-3 text-indigo-600" /> Primary Email
+                      </span>
+                      <p className="font-semibold text-slate-900 truncate">{profileData.primaryEmail || 'None provided'}</p>
+                    </div>
+
+                    <div className="p-2.5 bg-white rounded-xl border border-slate-100 space-y-0.5 sm:col-span-2">
+                      <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-emerald-600" /> Confirmed Location
+                      </span>
+                      <p className="font-semibold text-slate-900">
+                        {profileData.locationAddress || profileData.locationCity || 'Current GPS Location Set'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Social Media Links Badges */}
+                  {profileData.socialLinks.filter(s => s.url).length > 0 && (
+                    <div className="pt-2 border-t border-slate-200/60">
+                      <span className="text-[10px] font-bold text-slate-400 block mb-1.5 uppercase">Social Media Profiles:</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {profileData.socialLinks.filter(s => s.url).map(link => (
+                          <a
+                            key={link.id}
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2.5 py-1 bg-white hover:bg-indigo-50 border border-slate-200 text-indigo-700 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-colors shadow-2xs"
+                          >
+                            <span>{link.platform}</span>
+                            <Share2 className="w-2.5 h-2.5" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3D SAVE BUTTON */}
+                <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
+                  <button
+                    onClick={() => setProfileScreen(5)}
+                    className="w-full sm:w-auto px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span>Back</span>
+                  </button>
+
+                  <button
+                    onClick={handleSaveProfile}
+                    className="flex-1 w-full py-3.5 bg-gradient-to-b from-emerald-500 to-teal-700 hover:from-emerald-600 hover:to-teal-800 text-white rounded-2xl text-xs font-black shadow-[0_5px_0_0_#065f46,0_10px_16px_rgba(5,150,105,0.35)] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-2"
+                  >
+                    <Save className="w-4 h-4 stroke-[2.2]" />
+                    <span>Save Complete Profile</span>
+                  </button>
+                </div>
+              </section>
+            )}
+          </main>
+        </div>
+      )}
+
+      {/* ADMIN PORTAL & VIRAL MASTER REFERRAL CENTER MODAL */}
+      {adminModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-2xl max-h-[90dvh] rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-200">
+            
+            {/* Modal Header */}
+            <div className="p-5 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-b from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 shadow-md">
+                  <ShieldCheck className="w-5 h-5 stroke-[2.2]" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-slate-900">Admin Viral Referral Center</h3>
+                    <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-black rounded-md">
+                      timegig2026 Master
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500">Master share link and cascading viral loop manager</p>
+                </div>
               </div>
-              <button 
-                onClick={() => setAuthModalOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
+              <button
+                onClick={() => setAdminModalOpen(false)}
+                className="p-2 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-xl transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {isLoggedIn ? (
-              <div className="space-y-5 py-1">
-                {/* Account Badge Card */}
-                <div className="p-4 bg-gradient-to-r from-slate-50 to-indigo-50/50 border border-slate-200 rounded-2xl flex items-center justify-between">
-                  <div className="flex items-center gap-3.5">
-                    {selfieImage ? (
-                      <img 
-                        src={selfieImage} 
-                        alt="Selfie" 
-                        onClick={() => setLightboxImg(selfieImage)}
-                        className="w-12 h-12 rounded-xl object-cover border border-slate-200 cursor-pointer shadow-sm hover:opacity-90"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 bg-indigo-100 text-indigo-700 rounded-xl flex items-center justify-center font-bold text-sm border border-indigo-200 shadow-sm">
-                        {fullName ? fullName.slice(0, 2).toUpperCase() : (authEmail ? authEmail.slice(0, 2).toUpperCase() : 'US')}
-                      </div>
-                    )}
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-bold text-slate-900">{fullName || 'Registered User'}</h4>
-                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-md">
-                          {activeSubscription === 'tenant' ? 'Tenant Account' : activeSubscription === 'user' ? 'Subscriber Account' : 'Standard Account'}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500">{authEmail || email}</p>
-                      <div className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-2">
-                        <span>ID: <span className="font-mono">{currentAccountId}</span></span>
-                        <span>·</span>
-                        <span>Joined: {activeAccount?.createdAt || '2026'}</span>
-                      </div>
-                    </div>
+            {/* Modal Scrollable Body */}
+            <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6 text-xs">
+              
+              {/* ADMIN ACCOUNT STATUS & SKIP BADGE */}
+              <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5 font-bold text-amber-950">
+                    <Zap className="w-4 h-4 text-amber-600" />
+                    <span>Admin Master Account: timegig2026@gmail.com</span>
                   </div>
-
-                  <button 
-                    onClick={handleLogout}
-                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
-                    title="Log Out"
+                  <p className="text-[11px] text-amber-800">
+                    This account possesses instant skip features (skip payments, skip approvals, instant tenant bypass).
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={handleSwitchToAdmin}
+                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs shadow-sm transition-colors"
                   >
-                    <LogOut className="w-4 h-4" />
+                    Active as Admin
+                  </button>
+                </div>
+              </div>
+
+              {/* 1. ADMIN MASTER SHARE LINK CARD */}
+              <div className="p-5 bg-gradient-to-br from-indigo-50/70 to-blue-50/70 border border-indigo-200 rounded-2xl space-y-3.5 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Share2 className="w-4 h-4 text-indigo-600" />
+                    <span className="font-bold text-sm text-slate-900">Your Master Admin Invite Link</span>
+                  </div>
+                  <span className="text-[10px] bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded-md">
+                    Master Root Code: ADMIN
+                  </span>
+                </div>
+
+                <p className="text-slate-600 text-[11px] leading-relaxed">
+                  The link below runs this app. Any users who join through this link and pay your <b>"Become a Tenant"</b> subscription will automatically receive their own unique link to invite other users, and those referral users do the exact same thing over and over again!
+                </p>
+
+                {/* Share Link Input Box */}
+                <div className="flex items-center gap-2 bg-white border border-slate-300 rounded-xl p-1.5 shadow-inner">
+                  <input
+                    type="text"
+                    readOnly
+                    value={adminShareLink}
+                    className="flex-1 bg-transparent px-2.5 text-xs text-slate-800 font-mono outline-none truncate"
+                  />
+                  <button
+                    onClick={() => copyToClipboard(adminShareLink, 'Admin Master Share Link')}
+                    className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold flex items-center gap-1.5 transition-colors shadow-xs shrink-0"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy Link</span>
+                  </button>
+                  <button
+                    onClick={() => triggerNativeShare(adminShareLink, 'GeoPulse OSM - Become a Tenant', 'Join GeoPulse and become a verified tenant to get your own viral invite link!')}
+                    className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-bold flex items-center gap-1.5 transition-colors shadow-xs shrink-0"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Share</span>
                   </button>
                 </div>
 
-                {/* Edit Account Information Form */}
-                <form onSubmit={handleSaveAccountDetails} className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <h5 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                      <Settings className="w-3.5 h-3.5 text-indigo-600" />
-                      <span>Manage Profile Details</span>
-                    </h5>
-                    {accountEditSavedToast && (
-                      <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1 animate-in fade-in">
-                        <Check className="w-3 h-3" /> Saved!
-                      </span>
-                    )}
-                  </div>
+                {/* Test Simulation Button */}
+                <div className="pt-1 flex items-center justify-between text-[11px] text-slate-500">
+                  <span>Want to test this viral invitation flow right now?</span>
+                  <button
+                    onClick={() => handleSimulateViralJoin('ADMIN')}
+                    className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-200" />
+                    <span>Simulate User Join & Pay Subscription</span>
+                  </button>
+                </div>
+              </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-medium text-slate-500 mb-1">Full Legal Name</label>
-                      <input 
-                        type="text" 
-                        value={accountEditName}
-                        onChange={(e) => setAccountEditName(e.target.value)}
-                        placeholder="e.g. Matthews"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-medium text-slate-500 mb-1">Phone Number</label>
-                      <input 
-                        type="tel" 
-                        value={accountEditPhone}
-                        onChange={(e) => setAccountEditPhone(e.target.value)}
-                        placeholder="+27 82 123 4567"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="text-[10px] text-slate-400">Updates are stored in your separate account</span>
-                    <button 
-                      type="submit"
-                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
-                    >
-                      <Save className="w-3.5 h-3.5" />
-                      <span>Save Account</span>
-                    </button>
-                  </div>
-                </form>
-
-                {/* Account Status Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* KYC Verification Card */}
-                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-slate-700">KYC Verification</span>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                        {isApproved ? 'Verified & Approved' : `Pending (Step ${profileStep} of 4)`}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500">
-                      {selfieImage && idDocumentImage ? 'Selfie & ID uploaded' : 'KYC documents required'}
-                    </p>
-                    <button 
-                      onClick={() => {
-                        setAuthModalOpen(false);
-                        setProfileModalOpen(true);
-                      }}
-                      className="w-full py-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-1"
-                    >
-                      <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
-                      <span>{isApproved ? 'View KYC Record' : 'Complete Verification'}</span>
-                    </button>
-                  </div>
-
-                  {/* Subscription & PoP Card */}
-                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-slate-700">Subscription & PoP</span>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold capitalize ${
-                        (activeSubscription === 'tenant' ? tenantPoPStatus : userPoPStatus) === 'approved' 
-                          ? 'bg-emerald-100 text-emerald-800' 
-                          : 'bg-amber-100 text-amber-800'
-                      }`}>
-                        {(activeSubscription === 'tenant' ? tenantPoPStatus : userPoPStatus)}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 truncate">
-                      {activeSubscription === 'tenant' ? 'Become a Tenant (R299.99)' : activeSubscription === 'user' ? 'User Subscription (R29.99)' : 'No active plan'} · Ref: Ten29
-                    </p>
-                    <button 
-                      onClick={() => {
-                        setAuthModalOpen(false);
-                        setProfileModalOpen(true);
-                      }}
-                      className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-1 shadow-sm"
-                    >
-                      <CreditCard className="w-3.5 h-3.5" />
-                      <span>Manage Plan & PoP</span>
-                    </button>
-                  </div>
+              {/* 2. VIRAL NETWORK STATS */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                  <span className="text-[10px] text-slate-500 font-semibold block uppercase">Total Network</span>
+                  <span className="text-xl font-black text-slate-900">{totalNetworkMembers}</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Users in system</span>
                 </div>
 
-                {/* Personal Referral Link Card in Account Modal */}
-                <div className="p-4 bg-gradient-to-r from-indigo-50 to-emerald-50 border border-indigo-200 rounded-2xl space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Share2 className="w-4 h-4 text-indigo-600" />
-                      <h5 className="text-xs font-bold text-slate-900">
-                        {isTenantPortalAccessible ? 'Your Personal Tenant Invite Link' : 'Unlock Your Referral Invite Link'}
-                      </h5>
-                    </div>
-                    {isTenantPortalAccessible && (
-                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-md">
-                        Code: {currentTenantRefCode}
-                      </span>
-                    )}
-                  </div>
-
-                  {isTenantPortalAccessible ? (
-                    <>
-                      <p className="text-[11px] text-slate-600 leading-relaxed">
-                        Share this link with others. When they join and pay the "Become a Tenant" subscription, they unlock their portal and get their own link!
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-white border border-indigo-200 rounded-xl px-3 py-2 text-[11px] font-mono text-slate-700 truncate select-all">
-                          {tenantShareLink}
-                        </div>
-                        <button 
-                          onClick={() => copyShareLink(tenantShareLink, 'Your Invite Link')}
-                          className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm shrink-0"
-                        >
-                          <Copy className="w-3 h-3" />
-                          <span>{linkCopiedText === 'Your Invite Link' ? 'Copied' : 'Copy'}</span>
-                        </button>
-                        <button 
-                          onClick={() => triggerNativeShare(tenantShareLink, 'Join my Tenant Network', `Join GeoPulse and unlock your Tenant Portal: ${tenantShareLink}`)}
-                          className="p-2 bg-white hover:bg-slate-100 text-slate-700 rounded-xl border border-indigo-200 shrink-0"
-                          title="Share"
-                        >
-                          <Share2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                      <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1">
-                        <span>Invited: <strong className="text-slate-800">{tenantDirectInvites.length}</strong></span>
-                        <span>Paid Tenants: <strong className="text-emerald-600">{tenantConvertedCount}</strong></span>
-                        <span>Downstream: <strong className="text-indigo-600">{tenantDownstreamCount}</strong></span>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="space-y-2">
-                      <p className="text-[11px] text-slate-600 leading-relaxed">
-                        Subscribe to "Become a Tenant" (R299.99/mo) to receive your own personal link to invite others, earn referral credit, and unlock the Tenant Portal!
-                      </p>
-                      <button 
-                        onClick={() => {
-                          setSelectedSubscription('tenant');
-                          setAuthModalOpen(false);
-                          setProfileModalOpen(true);
-                        }}
-                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-colors shadow-sm flex items-center justify-center gap-1.5"
-                      >
-                        <Home className="w-3.5 h-3.5" />
-                        <span>Subscribe to Become a Tenant (R299.99/mo)</span>
-                      </button>
-                    </div>
-                  )}
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                  <span className="text-[10px] text-slate-500 font-semibold block uppercase">Paid Tenants</span>
+                  <span className="text-xl font-black text-emerald-600">{totalTenantSubscribers}</span>
+                  <span className="text-[10px] text-emerald-600 font-medium block mt-0.5">Active subscriptions</span>
                 </div>
 
-                {/* Registered Accounts Switcher / Multi-Account Manager */}
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h5 className="text-xs font-bold text-slate-900">Switch / Manage Registered Accounts</h5>
-                      <p className="text-[10px] text-slate-500">{accounts.length} separate account(s) on this device</p>
-                    </div>
-                    <button 
-                      onClick={() => {
-                        setIsLoggedIn(false);
-                        setAuthMode('signup');
-                        setInputEmail('');
-                        setInputPassword('');
-                        setTermsAccepted(false);
-                        setAuthError(null);
-                      }}
-                      className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1"
-                    >
-                      <UserPlus className="w-3.5 h-3.5" />
-                      <span>Register Another</span>
-                    </button>
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                  <span className="text-[10px] text-slate-500 font-semibold block uppercase">Admin Invites</span>
+                  <span className="text-xl font-black text-indigo-600">{adminAccount.referralCount}</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Direct referrals</span>
+                </div>
+
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                  <span className="text-[10px] text-slate-500 font-semibold block uppercase">Est. Revenue</span>
+                  <span className="text-xl font-black text-amber-600">R{totalNetworkRevenue.toFixed(2)}</span>
+                  <span className="text-[10px] text-amber-700 font-medium block mt-0.5">Subscription fees</span>
+                </div>
+              </div>
+
+              {/* 3. MULTI-TIER VIRAL CHAIN OVERVIEW */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Network className="w-4 h-4 text-blue-600" />
+                    <span className="font-bold text-sm text-slate-900">Viral Cascading Referral Tree</span>
                   </div>
+                  <span className="text-[10px] text-slate-500">Live multi-tier network</span>
+                </div>
 
-                  <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
-                    {accounts.map(acc => {
-                      const isCurrent = acc.id === currentAccountId;
-                      return (
-                        <div key={acc.id} className={`p-2.5 rounded-xl border flex items-center justify-between text-xs transition-colors ${isCurrent ? 'bg-white border-indigo-400 shadow-sm' : 'bg-white/60 border-slate-200 hover:bg-white'}`}>
-                          <div className="flex items-center gap-2.5 truncate mr-2">
-                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[10px] ${isCurrent ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
-                              {acc.fullName ? acc.fullName.slice(0, 2).toUpperCase() : acc.email.slice(0, 2).toUpperCase()}
-                            </div>
-                            <div className="truncate">
-                              <span className="font-bold text-slate-900 block truncate">{acc.fullName || acc.email}</span>
-                              <span className="text-[10px] text-slate-400 block truncate">{acc.email} · {acc.role === 'tenant' ? 'Tenant' : 'User'}</span>
-                            </div>
-                          </div>
-
-                          <div className="shrink-0">
-                            {isCurrent ? (
-                              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-md flex items-center gap-1">
-                                <CheckCircle className="w-3 h-3" /> Active
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden divide-y divide-slate-200">
+                  {accounts.map((acc, index) => (
+                    <div key={acc.id} className="p-3 flex items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 font-bold text-[10px] flex items-center justify-center shrink-0">
+                          {index + 1}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900 truncate">{acc.fullName}</span>
+                            {acc.role === 'admin' ? (
+                              <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-bold rounded">
+                                Root Admin
                               </span>
                             ) : (
-                              <button 
-                                onClick={() => {
-                                  syncStateFromAccount(acc);
-                                  setWelcomeToast(`Switched to account: ${acc.fullName || acc.email}`);
-                                  setTimeout(() => setWelcomeToast(null), 3000);
-                                }}
-                                className="px-2.5 py-1 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 rounded-lg text-[11px] font-semibold transition-colors"
-                              >
-                                Switch
-                              </button>
+                              <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-bold rounded">
+                                Tenant Subscriber
+                              </span>
                             )}
                           </div>
+                          <span className="text-[10px] text-slate-500 block truncate">
+                            Code: <b className="font-mono text-slate-700">{acc.referralCode}</b> · Invited by: <b className="font-mono text-slate-700">{acc.referredBy || 'None (Root)'}</b>
+                          </span>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                      </div>
 
-                <div className="flex gap-2 pt-1 border-t border-slate-100">
-                  <button 
-                    onClick={() => {
-                      setAuthModalOpen(false);
-                      setProfileModalOpen(true);
-                    }}
-                    className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors"
-                  >
-                    Go to Profile KYC Wizard
-                  </button>
-                  <button 
-                    onClick={handleLogout}
-                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    Log Out
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                
-                {/* Mode Selector */}
-                <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl text-xs font-semibold">
-                  <button 
-                    type="button"
-                    onClick={() => {
-                      setAuthMode('signup');
-                      setAuthError(null);
-                    }}
-                    className={`py-1.5 rounded-lg transition-all ${authMode === 'signup' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-800'}`}
-                  >
-                    Sign Up
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => {
-                      setAuthMode('login');
-                      setAuthError(null);
-                    }}
-                    className={`py-1.5 rounded-lg transition-all ${authMode === 'login' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-800'}`}
-                  >
-                    Log In
-                  </button>
-                </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="text-right">
+                          <span className="font-bold text-indigo-600 block text-xs">{acc.referralCount} Invites</span>
+                          <span className="text-[10px] text-emerald-600 font-semibold">{acc.tenantConversions} Paid</span>
+                        </div>
 
-                {authError && (
-                  <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs flex items-center gap-2 animate-in fade-in">
-                    <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                    <span>{authError}</span>
-                  </div>
-                )}
-
-                {authLoading ? (
-                  /* 3 SECONDS CIRCLE LOADING ANIMATION */
-                  <div className="py-12 flex flex-col items-center justify-center space-y-4 text-center">
-                    <div className="relative w-16 h-16 flex items-center justify-center">
-                      <div className="w-16 h-16 rounded-full border-4 border-slate-100 border-t-blue-600 animate-spin"></div>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <User className="w-6 h-6 text-blue-600 animate-pulse" />
+                        {acc.id !== currentAccountId && (
+                          <button
+                            onClick={() => handleSwitchAccount(acc.id)}
+                            className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-[10px] font-bold text-slate-700 transition-colors"
+                            title="Switch to this account to test their invite link"
+                          >
+                            Switch To
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-900">Setting up your account...</h4>
-                      <p className="text-xs text-slate-400 mt-1">Directing to KYC profile wizard in 3 seconds</p>
-                    </div>
-                  </div>
-                ) : (
-                  <form onSubmit={authMode === 'signup' ? handleSignup : handleLogin} className="space-y-3.5">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Email Address</label>
-                      <input 
-                        type="email" 
-                        required
-                        value={inputEmail}
-                        onChange={(e) => setInputEmail(e.target.value)}
-                        placeholder="you@example.com"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Password</label>
-                      <input 
-                        type="password" 
-                        required
-                        value={inputPassword}
-                        onChange={(e) => setInputPassword(e.target.value)}
-                        placeholder="••••••••••••"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600"
-                      />
-                    </div>
-
-                    {authMode === 'signup' && (
-                      <div className="flex items-start gap-2.5 pt-1">
-                        <input 
-                          type="checkbox"
-                          id="termsCheckbox"
-                          checked={termsAccepted}
-                          onChange={(e) => setTermsAccepted(e.target.checked)}
-                          className="mt-0.5 w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500 cursor-pointer"
-                        />
-                        <label htmlFor="termsCheckbox" className="text-xs text-slate-600 leading-tight cursor-pointer">
-                          I accept the <span className="font-semibold text-slate-900 underline">Terms and Conditions</span> and privacy policy.
-                        </label>
-                      </div>
-                    )}
-
-                    <button 
-                      type="submit"
-                      className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-xs transition-colors shadow-sm flex items-center justify-center gap-2 mt-2"
-                    >
-                      {authMode === 'signup' ? (
-                        <>
-                          <span>Sign Up</span>
-                          <ArrowRight className="w-4 h-4" />
-                        </>
-                      ) : (
-                        <>
-                          <LogIn className="w-4 h-4" />
-                          <span>Log In</span>
-                        </>
-                      )}
-                    </button>
-                  </form>
-                )}
-
+                  ))}
+                </div>
               </div>
-            )}
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+              <span className="text-[11px] text-slate-500">
+                timegig2026@gmail.com Root Administrator
+              </span>
+              <button
+                onClick={() => setAdminModalOpen(false)}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors"
+              >
+                Close Center
+              </button>
+            </div>
+
           </div>
         </div>
       )}
 
-      {/* TENANT PORTAL FULL-SCREEN OVERLAY (Identical look and features as Admin) */}
-      {tenantPortalOpen && (
-        <div className="fixed inset-0 z-50 bg-white text-slate-900 flex flex-col font-sans animate-in fade-in duration-200">
-          
-          {/* Top Header with Back Arrow Button */}
-          <div className="px-6 py-4 bg-white border-b border-slate-200 flex items-center gap-3 shrink-0 shadow-sm">
-            <button 
-              onClick={() => setTenantPortalOpen(false)}
-              className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl transition-colors border border-slate-200 flex items-center gap-2 text-xs font-semibold"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back</span>
-            </button>
-            <span className="text-sm font-bold text-slate-900">Tenant Portal Console</span>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-6 bg-white">
+      {/* TENANT PORTAL & VIRAL REFERRAL LINK MODAL */}
+      {tenantModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-xl max-h-[90dvh] rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-200">
             
-            {/* TENANT OVERVIEW TAB */}
-            {tenantTab === 'overview' && (
-              <div className="space-y-6 max-w-5xl mx-auto">
-                {/* Status Hero Card */}
-                <div className="p-6 bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-3xl shadow-lg relative overflow-hidden">
-                  <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-semibold mb-2">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-200" />
-                        <span>Active Tenant Subscription · Unit {activeAccount?.unitNumber || '4B'}</span>
-                      </div>
-                      <h2 className="text-xl sm:text-2xl font-black">Tenant Portal & Referral Center</h2>
-                      <p className="text-emerald-100 text-xs mt-1 max-w-xl">
-                        Welcome, {fullName || activeAccount?.fullName || email || 'Tenant'}! Your subscription is active (R299.99/mo). Share your personal invite link below to invite other users and expand the referral network.
-                      </p>
+            {/* Modal Header */}
+            <div className="p-5 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-b from-emerald-500 to-teal-700 flex items-center justify-center text-white shadow-md">
+                  <Key className="w-5 h-5 stroke-[2.2]" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-slate-900">Tenant Portal</h3>
+                    {currentAccount.activeSubscription === 'tenant' ? (
+                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-md">
+                        Active Tenant
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-bold rounded-md">
+                        Subscription Required
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500">Manage lease and your personal viral referral link</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setTenantModalOpen(false)}
+                className="p-2 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-xl transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5 text-xs">
+              
+              {/* IF USER IS NOT YET A SUBSCRIBED TENANT */}
+              {currentAccount.activeSubscription !== 'tenant' ? (
+                <div className="space-y-4">
+                  <div className="p-5 bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-bold text-sm text-emerald-950">Become a Tenant Subscription</h4>
+                      <span className="text-xs font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-lg">
+                        R299.99 / mo
+                      </span>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button 
-                        onClick={() => copyShareLink(tenantShareLink, 'Tenant Invite Link')}
-                        className="px-4 py-2.5 bg-white text-emerald-900 hover:bg-emerald-50 rounded-2xl text-xs font-bold shadow-md transition-all flex items-center gap-2"
+                    <p className="text-[11px] text-emerald-900 leading-relaxed">
+                      Pay the Admin's "Become a Tenant" subscription to activate your official tenant portal and receive your <b>own unique viral referral link</b> to invite other users!
+                    </p>
+
+                    <div className="space-y-2 pt-1 text-[11px] text-slate-700">
+                      <div className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>Instant access to TenantPortal features on the map</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>Receive your personal viral link to invite others & earn R299.99 per tenant conversion</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>Continuous chain: Your invitees receive their own link when they subscribe!</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex flex-col sm:flex-row gap-2">
+                      <button
+                        onClick={() => handleSubscribeBecomeTenant(false)}
+                        className="flex-1 py-3 bg-gradient-to-b from-emerald-500 to-teal-700 hover:from-emerald-600 hover:to-teal-800 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
                       >
-                        <Copy className="w-4 h-4 text-emerald-700" />
-                        <span>{linkCopiedText === 'Tenant Invite Link' ? 'Copied Link!' : 'Copy Link'}</span>
+                        <DollarSign className="w-4 h-4" />
+                        <span>Pay & Become a Tenant (R299.99)</span>
                       </button>
-                      <button 
-                        onClick={() => triggerNativeShare(tenantShareLink, 'Join my Tenant Network', `Join GeoPulse and unlock your Tenant Portal: ${tenantShareLink}`)}
-                        className="px-4 py-2.5 bg-emerald-800/80 hover:bg-emerald-800 text-white rounded-2xl text-xs font-bold border border-white/20 transition-all flex items-center gap-2"
-                      >
-                        <Share2 className="w-4 h-4" />
-                        <span>Share</span>
-                      </button>
+
+                      {/* SPECIAL SKIP FEATURE FOR timegig2026@gmail.com */}
+                      {isSpecialUser && (
+                        <button
+                          onClick={() => handleSubscribeBecomeTenant(true)}
+                          className="py-3 px-4 bg-gradient-to-b from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 font-black rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5"
+                          title="Skip payment and instantly activate tenant status with admin privileges"
+                        >
+                          <Zap className="w-4 h-4" />
+                          <span>Admin Skip & Activate</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
-
-                {/* VIRAL REFERRAL SYSTEM CARD */}
-                <div className="p-6 bg-white border border-slate-200 rounded-3xl space-y-5 shadow-sm">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              ) : (
+                /* IF USER IS AN ACTIVE TENANT -> SHOW VIRAL INVITE LINK CARD */
+                <div className="space-y-5">
+                  
+                  {/* Status Banner */}
+                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 animate-pulse"></span>
-                        <h3 className="text-base font-bold text-slate-900">Your Personal Invite Link (Viral Referral Loop)</h3>
-                      </div>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Share this link with others. Any users who join through your link and pay the admin's "Become a Tenant" subscription will receive their own link to invite other users, repeating the cycle over and over again.
-                      </p>
+                      <span className="font-bold text-xs text-emerald-950 block">Tenant Status: Active & Verified</span>
+                      <span className="text-[10px] text-emerald-700">Account: {currentAccount.fullName} ({currentAccount.email})</span>
                     </div>
-                    <span className="px-3 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold self-start sm:self-auto">
-                      Code: {currentTenantRefCode}
+                    <span className="px-2.5 py-1 bg-emerald-600 text-white font-bold text-[10px] rounded-lg">
+                      Paid to Admin
                     </span>
                   </div>
 
-                  {/* The Link Box */}
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                    <div className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 flex items-center gap-2 font-mono text-xs text-slate-700 overflow-x-auto select-all">
-                      <LinkIcon className="w-4 h-4 text-indigo-600 shrink-0" />
-                      <span className="truncate">{tenantShareLink}</span>
-                    </div>
-                    <button 
-                      onClick={() => copyShareLink(tenantShareLink, 'Your Tenant Invite Link')}
-                      className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl text-xs transition-colors shadow-sm flex items-center justify-center gap-2 shrink-0"
-                    >
-                      <Copy className="w-4 h-4" />
-                      <span>{linkCopiedText === 'Your Tenant Invite Link' ? 'Copied Link!' : 'Copy Link'}</span>
-                    </button>
-                    <button 
-                      onClick={() => triggerNativeShare(tenantShareLink, 'Join my Tenant Network', `Join GeoPulse and unlock your Tenant Portal: ${tenantShareLink}`)}
-                      className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded-2xl text-xs transition-colors flex items-center justify-center gap-2 shrink-0"
-                    >
-                      <Share2 className="w-4 h-4" />
-                      <span>Share</span>
-                    </button>
-                  </div>
-
-                  {/* Viral Referral Stats Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
-                      <span className="text-xs text-slate-500 font-medium">Joined Through Your Link</span>
-                      <h4 className="text-2xl font-black text-slate-900">{tenantDirectInvites.length}</h4>
-                      <span className="text-[10px] text-slate-400">Total registered friends</span>
-                    </div>
-
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
-                      <span className="text-xs text-slate-500 font-medium">Paid "Become a Tenant"</span>
-                      <h4 className="text-2xl font-black text-emerald-600">{tenantConvertedCount}</h4>
-                      <span className="text-[10px] text-emerald-600 font-semibold">Active & earned own link</span>
-                    </div>
-
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
-                      <span className="text-xs text-slate-500 font-medium">Downstream Viral Network</span>
-                      <h4 className="text-2xl font-black text-indigo-600">{tenantDownstreamCount}</h4>
-                      <span className="text-[10px] text-indigo-600 font-semibold">Joined through your tenants</span>
-                    </div>
-                  </div>
-
-                  {/* Explainer Steps */}
-                  <div className="p-4 bg-indigo-50/60 border border-indigo-100 rounded-2xl space-y-3">
-                    <h4 className="text-xs font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                      <span>How The Referral Cycle Works</span>
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-slate-600">
-                      <div className="p-3 bg-white rounded-xl border border-indigo-100 space-y-1">
-                        <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-bold text-[10px] flex items-center justify-center">1</span>
-                        <div className="font-bold text-slate-900">Share Your Link</div>
-                        <p className="text-[11px] text-slate-500">Send your unique link to other people. The link runs this app with your referral attached.</p>
-                      </div>
-                      <div className="p-3 bg-white rounded-xl border border-indigo-100 space-y-1">
-                        <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-bold text-[10px] flex items-center justify-center">2</span>
-                        <div className="font-bold text-slate-900">They Pay "Become a Tenant"</div>
-                        <p className="text-[11px] text-slate-500">When they pay the admin's subscription (R299.99/mo), their Tenant Portal unlocks.</p>
-                      </div>
-                      <div className="p-3 bg-white rounded-xl border border-indigo-100 space-y-1">
-                        <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-bold text-[10px] flex items-center justify-center">3</span>
-                        <div className="font-bold text-slate-900">They Get Their Own Link!</div>
-                        <p className="text-[11px] text-slate-500">They receive their own invite link to invite other users, repeating this over and over again!</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* List of Referred Users */}
-                  <div className="space-y-3 pt-2">
+                  {/* VIRAL INVITE LINK CARD */}
+                  <div className="p-5 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl space-y-3.5">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-bold text-slate-900">Users Invited via Your Link</h4>
-                      <span className="text-[11px] text-slate-500">{tenantDirectInvites.length} record(s)</span>
+                      <div className="flex items-center gap-2">
+                        <Share2 className="w-4 h-4 text-blue-600" />
+                        <span className="font-bold text-sm text-slate-900">Your Personal Viral Invite Link</span>
+                      </div>
+                      <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-md font-mono">
+                        Code: {currentAccount.referralCode}
+                      </span>
                     </div>
 
-                    {tenantDirectInvites.length > 0 ? (
-                      <div className="space-y-2">
-                        {tenantDirectInvites.map(u => (
-                          <div key={u.id} className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-[10px]">
-                                {u.fullName ? u.fullName.slice(0, 2).toUpperCase() : u.email.slice(0, 2).toUpperCase()}
-                              </div>
-                              <div>
-                                <h5 className="font-bold text-slate-900">{u.fullName || u.email}</h5>
-                                <p className="text-[10px] text-slate-500">Joined: {u.createdAt} · Referral Code: <span className="font-mono">{u.referralCode}</span></p>
-                              </div>
+                    <p className="text-slate-600 text-[11px] leading-relaxed">
+                      Share your unique link below. Any users who join through your link and pay the "Become a Tenant" subscription will receive <b>their own link to invite other users</b>, and that referral users do the same thing over and over again!
+                    </p>
+
+                    {/* Share Link Input */}
+                    <div className="flex items-center gap-2 bg-white border border-slate-300 rounded-xl p-1.5 shadow-inner">
+                      <input
+                        type="text"
+                        readOnly
+                        value={tenantShareLink}
+                        className="flex-1 bg-transparent px-2.5 text-xs text-slate-800 font-mono outline-none truncate"
+                      />
+                      <button
+                        onClick={() => copyToClipboard(tenantShareLink, 'Your Tenant Viral Invite Link')}
+                        className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold flex items-center gap-1.5 transition-colors shadow-xs shrink-0"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copy</span>
+                      </button>
+                      <button
+                        onClick={() => triggerNativeShare(tenantShareLink, 'Join via my Tenant Invite Link', 'Join GeoPulse through my tenant link and become a verified tenant to get your own link!')}
+                        className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-bold flex items-center gap-1.5 transition-colors shadow-xs shrink-0"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                        <span>Share</span>
+                      </button>
+                    </div>
+
+                    {/* Test Simulation Button */}
+                    <div className="pt-1 flex items-center justify-between text-[11px] text-slate-500">
+                      <span>Test your personal referral loop:</span>
+                      <button
+                        onClick={() => handleSimulateViralJoin(currentAccount.referralCode)}
+                        className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-emerald-200" />
+                        <span>Simulate User Joining via My Link</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Personal Viral Stats */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl">
+                      <span className="text-[10px] text-slate-500 font-semibold block uppercase">Direct Invites</span>
+                      <span className="text-lg font-black text-slate-900">{currentAccount.referralCount || 0}</span>
+                      <span className="text-[10px] text-slate-400 block">Joined users</span>
+                    </div>
+
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl">
+                      <span className="text-[10px] text-slate-500 font-semibold block uppercase">Converted</span>
+                      <span className="text-lg font-black text-emerald-600">{currentAccount.tenantConversions || 0}</span>
+                      <span className="text-[10px] text-emerald-600 block">Became tenants</span>
+                    </div>
+
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl">
+                      <span className="text-[10px] text-slate-500 font-semibold block uppercase">Rewards</span>
+                      <span className="text-lg font-black text-amber-600">R{(currentAccount.earnings || 0).toFixed(2)}</span>
+                      <span className="text-[10px] text-amber-700 block">Earnings</span>
+                    </div>
+                  </div>
+
+                  {/* Friends who joined via this link */}
+                  <div className="space-y-2">
+                    <span className="font-bold text-xs text-slate-900 block">Downstream Users Who Joined via Your Link:</span>
+                    {accounts.filter(a => a.referredBy === currentAccount.referralCode).length > 0 ? (
+                      <div className="bg-slate-50 border border-slate-200 rounded-2xl divide-y divide-slate-200">
+                        {accounts.filter(a => a.referredBy === currentAccount.referralCode).map(sub => (
+                          <div key={sub.id} className="p-3 flex items-center justify-between text-xs">
+                            <div>
+                              <span className="font-bold text-slate-900 block">{sub.fullName}</span>
+                              <span className="text-[10px] text-slate-500 font-mono">Assigned Code: {sub.referralCode}</span>
                             </div>
-                            <div className="text-right">
-                              {u.activeSubscription === 'tenant' && u.tenantPoPStatus === 'approved' ? (
-                                <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-lg font-bold text-[10px] inline-flex items-center gap-1">
-                                  <Check className="w-3 h-3" /> Paid Tenant (Has Own Link)
-                                </span>
-                              ) : (
-                                <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-[10px] font-semibold">
-                                  Pending Tenant Sub
-                                </span>
-                              )}
-                            </div>
+                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">
+                              Subscribed & Active
+                            </span>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div className="p-6 bg-slate-50 rounded-2xl text-center text-xs text-slate-400">
-                        No users have joined using your link yet. Copy your link above and share it with others!
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Lease Details & Maintenance */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-5 bg-white border border-slate-200 rounded-3xl space-y-3 shadow-sm">
-                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                      <Building2 className="w-4 h-4 text-indigo-600" />
-                      <span>Lease & Subscription Summary</span>
-                    </h4>
-                    <div className="space-y-2 text-xs">
-                      <div className="flex justify-between py-1 border-b border-slate-100">
-                        <span className="text-slate-500">Subscription Plan:</span>
-                        <span className="font-bold text-indigo-600">Become a Tenant (R299.99/mo)</span>
-                      </div>
-                      <div className="flex justify-between py-1 border-b border-slate-100">
-                        <span className="text-slate-500">Beneficiary:</span>
-                        <span className="font-bold text-slate-900">Admin Matthews (Capitec: 1334067366)</span>
-                      </div>
-                      <div className="flex justify-between py-1 border-b border-slate-100">
-                        <span className="text-slate-500">Reference:</span>
-                        <span className="font-mono font-bold text-blue-600">Ten29</span>
-                      </div>
-                      <div className="flex justify-between py-1">
-                        <span className="text-slate-500">Your Invite Code:</span>
-                        <span className="font-mono font-bold text-emerald-600">{currentTenantRefCode}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Maintenance Request Section */}
-                  <div className="p-5 bg-white border border-slate-200 rounded-3xl space-y-3 shadow-sm">
-                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                      <Wrench className="w-4 h-4 text-indigo-600" />
-                      <span>Unit Maintenance Requests</span>
-                    </h4>
-                    <form onSubmit={addMaintenanceRequest} className="flex gap-2">
-                      <input 
-                        type="text" 
-                        value={newRequestTitle}
-                        onChange={(e) => setNewRequestTitle(e.target.value)}
-                        placeholder="Log new maintenance issue..."
-                        className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
-                      />
-                      <button 
-                        type="submit"
-                        className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow-sm"
-                      >
-                        Submit
-                      </button>
-                    </form>
-                    <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                      {maintenanceList.length > 0 ? (
-                        maintenanceList.map(req => (
-                          <div key={req.id} className="p-2 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
-                            <span className="text-slate-800 font-medium truncate">{req.title}</span>
-                            <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-[10px] font-semibold">{req.status}</span>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-[11px] text-slate-400 text-center py-2">No active maintenance issues logged.</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* TENANT VERIFICATION TAB */}
-            {tenantTab === 'verification' && (
-              <div className="space-y-3 max-w-5xl mx-auto">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">KYC Verification Record</h3>
-                  <p className="text-[10px] text-slate-500">Your verified face selfie and ID document. Click any image to view full-screen.</p>
-                </div>
-
-                <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-2 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-[10px] font-bold text-slate-950">{fullName || 'Verified Tenant'}</h4>
-                      <p className="text-[9px] text-slate-500">{email || 'No email provided'} · {phone || 'No phone'}</p>
-                    </div>
-                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-lg text-[9px] font-semibold">
-                      KYC Approved
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
-                    <div>
-                      <span className="text-[9px] text-slate-400 font-medium block mb-1">Face Selfie (Click to view full screen)</span>
-                      {selfieImage ? (
-                        <div 
-                          onClick={() => setLightboxImg(selfieImage)}
-                          className="relative cursor-pointer group rounded-lg overflow-hidden border border-slate-200"
-                        >
-                          <img src={selfieImage} alt="Selfie" className="w-full h-20 object-cover group-hover:scale-105 transition-transform" />
-                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[9px] font-semibold gap-1">
-                            <Eye className="w-3 h-3" /> Full Screen
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="w-full h-20 bg-slate-50 rounded-lg flex items-center justify-center text-[9px] text-slate-400">Not uploaded</div>
-                      )}
-                    </div>
-                    <div>
-                      <span className="text-[9px] text-slate-400 font-medium block mb-1">ID Document (Click to view full screen)</span>
-                      {idDocumentImage ? (
-                        <div 
-                          onClick={() => setLightboxImg(idDocumentImage)}
-                          className="relative cursor-pointer group rounded-lg overflow-hidden border border-slate-200"
-                        >
-                          <img src={idDocumentImage} alt="ID" className="w-full h-20 object-cover group-hover:scale-105 transition-transform" />
-                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[9px] font-semibold gap-1">
-                            <Eye className="w-3 h-3" /> Full Screen
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="w-full h-20 bg-slate-50 rounded-lg flex items-center justify-center text-[9px] text-slate-400">Not uploaded</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* TENANT POP TAB */}
-            {tenantTab === 'tenant_pop' && (
-              <div className="space-y-3 max-w-5xl mx-auto">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">Tenant Proof of Payment (PoP)</h3>
-                  <p className="text-[10px] text-slate-500">Your Capitec Bank transfer receipts and profile selfie records. Click any image to view full-screen.</p>
-                </div>
-
-                <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-2 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-[10px] font-bold text-slate-950">{fullName || 'Verified Tenant'} (Become a Tenant - R299.99)</h4>
-                      <p className="text-[9px] text-slate-500">{email || 'No email provided'} · Ref: <span className="font-mono font-bold text-blue-600">Ten29</span> (Capitec: 1334067366)</p>
-                    </div>
-                    <span className={`px-2 py-0.5 rounded-lg text-[9px] font-semibold border ${
-                      tenantPoPStatus === 'approved' 
-                        ? 'bg-emerald-100 text-emerald-800 border-emerald-200' 
-                        : tenantPoPStatus === 'rejected' 
-                        ? 'bg-rose-100 text-rose-800 border-rose-200' 
-                        : 'bg-amber-100 text-amber-800 border-amber-200'
-                    }`}>
-                      {tenantPoPStatus === 'approved' ? 'Approved & Paid' : tenantPoPStatus === 'rejected' ? 'Rejected' : 'Pending Verification'}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
-                    <div>
-                      <span className="text-[9px] text-slate-400 font-medium block mb-1">User Profile Selfie (Click to view full screen)</span>
-                      {selfieImage ? (
-                        <div 
-                          onClick={() => setLightboxImg(selfieImage)}
-                          className="relative cursor-pointer group rounded-lg overflow-hidden border border-slate-200"
-                        >
-                          <img src={selfieImage} alt="User Selfie" className="w-full h-20 object-cover group-hover:scale-105 transition-transform" />
-                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[9px] font-semibold gap-1">
-                            <Eye className="w-3 h-3" /> Full Screen
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="w-full h-20 bg-slate-50 rounded-lg flex items-center justify-center text-[9px] text-slate-400">Not uploaded</div>
-                      )}
-                    </div>
-                    <div>
-                      <span className="text-[9px] text-slate-400 font-medium block mb-1">PoP Receipt Document (Click to view full screen)</span>
-                      {popImage ? (
-                        <div 
-                          onClick={() => setLightboxImg(popImage)}
-                          className="relative cursor-pointer group rounded-lg overflow-hidden border border-slate-200"
-                        >
-                          <img src={popImage} alt="Tenant PoP" className="w-full h-20 object-cover group-hover:scale-105 transition-transform" />
-                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[9px] font-semibold gap-1">
-                            <Eye className="w-3 h-3" /> Full Screen
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="w-full h-20 bg-slate-50 rounded-lg flex items-center justify-center text-[9px] text-slate-400">Not uploaded</div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Re-upload PoP button */}
-                  <div className="flex items-center justify-end pt-2 border-t border-slate-100">
-                    <label className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-[9px] font-semibold transition-colors cursor-pointer flex items-center gap-1">
-                      <Upload className="w-3 h-3" />
-                      <span>Upload New PoP Receipt</span>
-                      <input type="file" accept="image/*,.pdf" onChange={(e) => handleFileUpload(e, 'pop')} className="hidden" />
-                    </label>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* TENANT USER POP TAB (Lease Agreement & Receipts) */}
-            {tenantTab === 'user_pop' && (
-              <div className="space-y-3 max-w-5xl mx-auto">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">Lease Receipts & Transaction History</h3>
-                  <p className="text-[10px] text-slate-500">Your monthly lease payment receipts and confirmed transaction IDs.</p>
-                </div>
-
-                <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-2 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-[10px] font-bold text-slate-950">{fullName || 'Verified Tenant'} (Lease Agreement Unit 4B)</h4>
-                      <p className="text-[9px] text-slate-500">{email || 'No email provided'} · Transaction: TX-2026-948123</p>
-                    </div>
-                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-semibold rounded-lg">
-                      Locked & Active
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
-                    <div>
-                      <span className="text-[9px] text-slate-400 font-medium block mb-1">User Profile Selfie (Click to view full screen)</span>
-                      {selfieImage ? (
-                        <div 
-                          onClick={() => setLightboxImg(selfieImage)}
-                          className="relative cursor-pointer group rounded-lg overflow-hidden border border-slate-200"
-                        >
-                          <img src={selfieImage} alt="User Selfie" className="w-full h-20 object-cover group-hover:scale-105 transition-transform" />
-                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[9px] font-semibold gap-1">
-                            <Eye className="w-3 h-3" /> Full Screen
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="w-full h-20 bg-slate-50 rounded-lg flex items-center justify-center text-[9px] text-slate-400">Not uploaded</div>
-                      )}
-                    </div>
-                    <div>
-                      <span className="text-[9px] text-slate-400 font-medium block mb-1">PoP Receipt Document (Click to view full screen)</span>
-                      {popImage ? (
-                        <div 
-                          onClick={() => setLightboxImg(popImage)}
-                          className="relative cursor-pointer group rounded-lg overflow-hidden border border-slate-200"
-                        >
-                          <img src={popImage} alt="Receipt" className="w-full h-20 object-cover group-hover:scale-105 transition-transform" />
-                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[9px] font-semibold gap-1">
-                            <Eye className="w-3 h-3" /> Full Screen
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="w-full h-20 bg-slate-50 rounded-lg flex items-center justify-center text-[9px] text-slate-400">Not uploaded</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-          </div>
-
-          {/* Tenant Portal Bottom Menu Bar (Identical 4 empty line-art tabs as Admin) */}
-          <footer className="bg-white border-t border-slate-200 py-3 px-6 flex items-center justify-around shrink-0 shadow-lg">
-            <button 
-              onClick={() => setTenantTab('overview')}
-              className={`flex flex-col items-center gap-1 group focus:outline-none ${tenantTab === 'overview' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
-            >
-              <BarChart3 className="w-6 h-6 stroke-[1.5]" />
-              <span className="text-xs font-semibold">Overview</span>
-            </button>
-            <button 
-              onClick={() => setTenantTab('verification')}
-              className={`flex flex-col items-center gap-1 group focus:outline-none ${tenantTab === 'verification' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
-            >
-              <FileCheck className="w-6 h-6 stroke-[1.5]" />
-              <span className="text-xs font-semibold">Verification</span>
-            </button>
-            <button 
-              onClick={() => setTenantTab('tenant_pop')}
-              className={`flex flex-col items-center gap-1 group focus:outline-none ${tenantTab === 'tenant_pop' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
-            >
-              <Receipt className="w-6 h-6 stroke-[1.5]" />
-              <span className="text-xs font-semibold">Tenant PoP</span>
-            </button>
-            <button 
-              onClick={() => setTenantTab('user_pop')}
-              className={`flex flex-col items-center gap-1 group focus:outline-none ${tenantTab === 'user_pop' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
-            >
-              <DollarSign className="w-6 h-6 stroke-[1.5]" />
-              <span className="text-xs font-semibold">User PoP</span>
-            </button>
-          </footer>
-
-        </div>
-      )}
-
-      {/* ADMIN DASHBOARD FULL-SCREEN OVERLAY - ONLY FOR TIMEGIG2026 */}
-      {adminOpen && email === 'timegig2026@gmail.com' && (
-        <div className="fixed inset-0 z-50 bg-white text-slate-900 flex flex-col font-sans animate-in fade-in duration-200">
-          
-          {/* Floating Back Arrow Header */}
-          <div className="px-6 py-4 bg-white border-b border-slate-200 flex items-center gap-3 shrink-0 shadow-sm">
-            <button 
-              onClick={() => setAdminOpen(false)}
-              className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl transition-colors border border-slate-200 flex items-center gap-2 text-xs font-semibold"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back</span>
-            </button>
-            <span className="text-sm font-bold text-slate-900">Administration Console</span>
-            <button 
-              onClick={resetApp}
-              className="ml-auto p-2 bg-red-100 hover:bg-red-200 text-red-800 rounded-xl transition-colors border border-red-200 text-xs font-semibold"
-            >
-              Reset App
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-6 bg-white">
-            
-            {/* OVERVIEW TAB */}
-            {adminTab === 'overview' && (
-              <div className="space-y-6 max-w-5xl mx-auto">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  
-                  {/* Tenant Subscription Profit */}
-                  <div className="p-5 bg-white border border-slate-200 rounded-2xl space-y-1 shadow-sm">
-                    <span className="text-xs text-slate-500 font-medium">Tenant Subscription Profit</span>
-                    <h3 className="text-xl font-bold text-emerald-600">R{tenantProfit.toFixed(2)}</h3>
-                    <span className="text-[10px] text-slate-400">R299.99 per active tenant</span>
-                  </div>
-
-                  {/* User Subscription Profit */}
-                  <div className="p-5 bg-white border border-slate-200 rounded-2xl space-y-1 shadow-sm">
-                    <span className="text-xs text-slate-500 font-medium">User Subscription Profit</span>
-                    <h3 className="text-xl font-bold text-emerald-600">R{userProfit.toFixed(2)}</h3>
-                    <span className="text-[10px] text-slate-400">R29.99 per active user</span>
-                  </div>
-
-                  {/* CLICKABLE ACTIVE TENANTS CARD */}
-                  <div 
-                    onClick={() => setActiveTenantsModalOpen(true)}
-                    className="p-5 bg-white border border-slate-200 rounded-2xl space-y-1 shadow-sm hover:border-indigo-400 hover:shadow-md cursor-pointer transition-all group relative"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-500 font-medium group-hover:text-indigo-600 transition-colors">Active Tenants</span>
-                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-slate-900">{activeTenantsCount}</h3>
-                    <span className="text-[10px] text-indigo-600 font-semibold flex items-center gap-1">
-                      <Users className="w-3 h-3" /> Click to view all tenants
-                    </span>
-                  </div>
-
-                  {/* CLICKABLE ACTIVE SUBSCRIPTION USERS CARD */}
-                  <div 
-                    onClick={() => setActiveUsersModalOpen(true)}
-                    className="p-5 bg-white border border-slate-200 rounded-2xl space-y-1 shadow-sm hover:border-indigo-400 hover:shadow-md cursor-pointer transition-all group relative"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-500 font-medium group-hover:text-indigo-600 transition-colors">Active Subscription Users</span>
-                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-slate-900">{activeUsersCount}</h3>
-                    <span className="text-[10px] text-indigo-600 font-semibold flex items-center gap-1">
-                      <Users className="w-3 h-3" /> Click to view all users
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-5 bg-white border border-slate-200 rounded-2xl space-y-1 shadow-sm">
-                    <span className="text-xs text-slate-500 font-medium">Total Revenue / Profit</span>
-                    <h3 className="text-2xl font-bold text-slate-900">R{totalProfit.toFixed(2)}</h3>
-                    <span className="text-[10px] text-emerald-600 font-semibold">Capitec Bank Account: 1334067366 (Matthews)</span>
-                  </div>
-                  <div className="p-5 bg-white border border-slate-200 rounded-2xl space-y-1 shadow-sm">
-                    <span className="text-xs text-slate-500 font-medium">Registered User KYC</span>
-                    <h3 className="text-lg font-bold text-slate-900 truncate">{fullName || 'None'}</h3>
-                    <span className="text-[10px] text-emerald-600 font-semibold">{isApproved ? 'Verified & Approved' : 'Unverified'}</span>
-                  </div>
-                </div>
-
-                {/* ADMIN MASTER INVITE LINK & VIRAL NETWORK CENTER */}
-                <div className="p-6 bg-white border border-slate-200 rounded-3xl space-y-5 shadow-sm">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse"></span>
-                        <h3 className="text-base font-bold text-slate-900">Admin Master Invite Link (Viral Referral Network)</h3>
-                      </div>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        The link runs this app. Any users who join through this link and pay your "Become a Tenant" subscription (R299.99/mo) will receive their own link to invite other users, and that referral users do the same thing over and over again.
+                      <p className="p-4 text-center bg-slate-50 border border-dashed border-slate-200 rounded-2xl text-[11px] text-slate-400">
+                        No one has joined with your link yet. Copy your link above or click "Simulate User Joining" to test the loop!
                       </p>
-                    </div>
-                    <span className="px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold self-start sm:self-auto">
-                      Code: ADMIN
-                    </span>
+                    )}
                   </div>
 
-                  {/* Admin Master Link Box */}
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                    <div className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 flex items-center gap-2 font-mono text-xs text-slate-700 overflow-x-auto select-all">
-                      <LinkIcon className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span className="truncate">{adminShareLink}</span>
-                    </div>
-                    <button 
-                      onClick={() => copyShareLink(adminShareLink, 'Admin Master Link')}
-                      className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl text-xs transition-colors shadow-sm flex items-center justify-center gap-2 shrink-0"
-                    >
-                      <Copy className="w-4 h-4" />
-                      <span>{linkCopiedText === 'Admin Master Link' ? 'Copied Link!' : 'Copy Link'}</span>
-                    </button>
-                    <button 
-                      onClick={() => triggerNativeShare(adminShareLink, 'Join GeoPulse as Tenant', `Join GeoPulse and activate your tenant subscription: ${adminShareLink}`)}
-                      className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded-2xl text-xs transition-colors flex items-center justify-center gap-2 shrink-0"
-                    >
-                      <Share2 className="w-4 h-4" />
-                      <span>Share</span>
-                    </button>
-                    <button 
-                      onClick={simulateReferralJoin}
-                      className="px-4 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold rounded-2xl text-xs transition-colors flex items-center justify-center gap-1.5 shrink-0"
-                      title="Simulate a new user joining through this link and paying 'Become a Tenant'"
-                    >
-                      <Sparkles className="w-4 h-4 text-indigo-600" />
-                      <span>Simulate Invite & Payment</span>
-                    </button>
-                  </div>
-
-                  {/* Viral Network Metrics */}
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-2">
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
-                      <span className="text-[11px] text-slate-500 font-medium">Direct Admin Invites</span>
-                      <h4 className="text-xl font-black text-slate-900">{adminDirectInvites.length}</h4>
-                      <span className="text-[10px] text-slate-400">Joined with ?ref=ADMIN</span>
-                    </div>
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
-                      <span className="text-[11px] text-slate-500 font-medium">Paid Tenants Converted</span>
-                      <h4 className="text-xl font-black text-emerald-600">{activeTenantsCount}</h4>
-                      <span className="text-[10px] text-emerald-600 font-semibold">Unlocked their own link</span>
-                    </div>
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
-                      <span className="text-[11px] text-slate-500 font-medium">Viral Sub-Invites (Tier 2+)</span>
-                      <h4 className="text-xl font-black text-indigo-600">
-                        {accounts.filter(a => a.referredBy && a.referredBy !== 'ADMIN').length}
-                      </h4>
-                      <span className="text-[10px] text-indigo-600 font-semibold">Invited by your tenants</span>
-                    </div>
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
-                      <span className="text-[11px] text-slate-500 font-medium">Total Network Size</span>
-                      <h4 className="text-xl font-black text-slate-900">{accounts.length}</h4>
-                      <span className="text-[10px] text-slate-400">All registered members</span>
-                    </div>
-                  </div>
-
-                  {/* VIRAL REFERRAL CHAIN / MULTI-TIER TREE TABLE */}
-                  <div className="space-y-3 pt-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Viral Referral Chain & User Links Directory</h4>
-                        <p className="text-[11px] text-slate-500">Every user's referral code, their referrer, their subscription status, and their generated invite link.</p>
-                      </div>
-                      <span className="text-xs text-slate-500 font-medium">{accounts.length} Total Users in Network</span>
-                    </div>
-
-                    <div className="overflow-x-auto border border-slate-200 rounded-2xl">
-                      <table className="w-full text-left text-xs text-slate-700">
-                        <thead className="bg-slate-50 text-[11px] font-bold text-slate-500 border-b border-slate-200 uppercase">
-                          <tr>
-                            <th className="p-3">User & Email</th>
-                            <th className="p-3">Referrer</th>
-                            <th className="p-3">Their Referral Code</th>
-                            <th className="p-3">Their Generated Invite Link</th>
-                            <th className="p-3">Subscription Status</th>
-                            <th className="p-3">Network Impact</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 bg-white">
-                          {accounts.map(acc => {
-                            const isUserTenant = acc.activeSubscription === 'tenant' && acc.tenantPoPStatus === 'approved';
-                            const userInviteUrl = `${appBaseUrl}?ref=${encodeURIComponent(acc.referralCode || 'USER')}`;
-                            return (
-                              <tr key={acc.id} className="hover:bg-slate-50/80 transition-colors">
-                                <td className="p-3 font-medium">
-                                  <div className="font-bold text-slate-900">{acc.fullName || 'User Profile'}</div>
-                                  <div className="text-[10px] text-slate-400 font-mono">{acc.email}</div>
-                                </td>
-                                <td className="p-3">
-                                  <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${
-                                    acc.referredBy === 'ADMIN' 
-                                      ? 'bg-emerald-100 text-emerald-800' 
-                                      : acc.referredBy 
-                                      ? 'bg-indigo-100 text-indigo-800' 
-                                      : 'bg-slate-100 text-slate-600'
-                                  }`}>
-                                    {acc.referredBy || 'Direct / Root'}
-                                  </span>
-                                </td>
-                                <td className="p-3 font-mono font-bold text-slate-900">
-                                  {acc.referralCode || 'ADMIN'}
-                                </td>
-                                <td className="p-3">
-                                  <div className="flex items-center gap-1.5 max-w-[200px]">
-                                    <span className="font-mono text-[10px] text-slate-500 truncate" title={userInviteUrl}>
-                                      ?ref={acc.referralCode || 'ADMIN'}
-                                    </span>
-                                    <button 
-                                      onClick={() => copyShareLink(userInviteUrl, `${acc.fullName || 'User'} Invite Link`)}
-                                      className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-800 shrink-0"
-                                      title="Copy this link"
-                                    >
-                                      <Copy className="w-3 h-3" />
-                                    </button>
-                                  </div>
-                                </td>
-                                <td className="p-3">
-                                  {isUserTenant ? (
-                                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded-lg text-[10px] inline-flex items-center gap-1">
-                                      <Check className="w-3 h-3" /> Paid Tenant (R299.99)
-                                    </span>
-                                  ) : acc.tenantPoPStatus === 'pending' ? (
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="px-2 py-0.5 bg-amber-100 text-amber-800 font-semibold rounded-lg text-[10px]">
-                                        Pending Tenant PoP
-                                      </span>
-                                      <button 
-                                        onClick={() => {
-                                          updateAccountData(acc.id, {
-                                            tenantPoPStatus: 'approved',
-                                            activeSubscription: 'tenant',
-                                            subStep: 'complete'
-                                          });
-                                          setWelcomeToast(`Approved tenant subscription for ${acc.fullName || acc.email}!`);
-                                          setTimeout(() => setWelcomeToast(null), 3000);
-                                        }}
-                                        className="px-2 py-0.5 bg-emerald-600 text-white rounded text-[10px] font-bold hover:bg-emerald-500"
-                                      >
-                                        Approve
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-lg text-[10px]">
-                                      Standard User
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="p-3 text-[11px]">
-                                  <span className="font-bold text-slate-900">{acc.referralCount || 0}</span> invited · <span className="font-bold text-emerald-600">{acc.tenantConversions || 0}</span> tenants
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* VERIFICATION TAB */}
-            {adminTab === 'verification' && (
-              <div className="space-y-6 max-w-5xl mx-auto">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">KYC Verification Records</h3>
-                    <p className="text-xs text-slate-500">Submitted face selfie and ID document records across all user accounts. Click any image to view full-screen.</p>
-                  </div>
-                  <span className="px-3 py-1 bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl">
-                    {accounts.length} Total Accounts
-                  </span>
-                </div>
-
-                <div className="space-y-4">
-                  {accounts.map(acc => {
-                    return (
-                      <div key={acc.id} className="p-5 bg-white border border-slate-200 rounded-2xl space-y-4 shadow-sm">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-indigo-50 text-indigo-700 rounded-xl flex items-center justify-center font-bold text-xs border border-indigo-200">
-                              {acc.fullName ? acc.fullName.slice(0, 2).toUpperCase() : acc.email.slice(0, 2).toUpperCase()}
-                            </div>
-                            <div>
-                              <h4 className="text-xs font-bold text-slate-950">{acc.fullName || 'User Profile'}</h4>
-                              <p className="text-[11px] text-slate-500">{acc.email} · {acc.phone || 'No phone'} · <span className="font-mono text-slate-400">ID: {acc.id}</span></p>
-                            </div>
-                          </div>
-                          <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${acc.isApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                            {acc.isApproved ? 'Approved' : 'Pending Verification'}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
-                          <div>
-                            <span className="text-[11px] text-slate-400 font-medium block mb-1">Face Selfie (Click to view full screen)</span>
-                            {acc.selfieImage ? (
-                              <div 
-                                onClick={() => setLightboxImg(acc.selfieImage)}
-                                className="relative cursor-pointer group rounded-xl overflow-hidden border border-slate-200"
-                              >
-                                <img src={acc.selfieImage} alt="Selfie" className="w-full h-32 object-cover group-hover:scale-105 transition-transform" />
-                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold gap-1">
-                                  <Eye className="w-4 h-4" /> Full Screen
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="w-full h-32 bg-slate-50 rounded-xl flex items-center justify-center text-xs text-slate-400">Not uploaded</div>
-                            )}
-                          </div>
-                          <div>
-                            <span className="text-[11px] text-slate-400 font-medium block mb-1">ID Document (Click to view full screen)</span>
-                            {acc.idDocumentImage ? (
-                              <div 
-                                onClick={() => setLightboxImg(acc.idDocumentImage)}
-                                className="relative cursor-pointer group rounded-xl overflow-hidden border border-slate-200"
-                              >
-                                <img src={acc.idDocumentImage} alt="ID" className="w-full h-32 object-cover group-hover:scale-105 transition-transform" />
-                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold gap-1">
-                                  <Eye className="w-4 h-4" /> Full Screen
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="w-full h-32 bg-slate-50 rounded-xl flex items-center justify-center text-xs text-slate-400">Not uploaded</div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Admin Action Buttons for KYC */}
-                        <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-                          <button 
-                            onClick={() => {
-                              updateAccountData(acc.id, { isApproved: false, profileStep: 1 });
-                              setWelcomeToast(`KYC rejected for ${acc.fullName || acc.email}`);
-                              setTimeout(() => setWelcomeToast(null), 3000);
-                            }}
-                            className="px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5"
-                          >
-                            <XCircle className="w-3.5 h-3.5" />
-                            Reject KYC
-                          </button>
-                          <button 
-                            onClick={() => {
-                              updateAccountData(acc.id, { isApproved: true, profileStep: 5 });
-                              setWelcomeToast(`KYC approved for ${acc.fullName || acc.email}!`);
-                              setTimeout(() => setWelcomeToast(null), 3000);
-                            }}
-                            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            Approve KYC
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* TENANT POP TAB */}
-            {adminTab === 'tenant_pop' && (
-              <div className="space-y-6 max-w-5xl mx-auto">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">Tenant Proof of Payment (PoP)</h3>
-                    <p className="text-xs text-slate-500">Capitec Bank transfer receipts and profile selfie records across tenant accounts. Approve or reject tenant payments below.</p>
-                  </div>
-                  <span className="px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold rounded-xl">
-                    {activeTenantsCount} Active Tenant(s)
-                  </span>
-                </div>
-
-                <div className="space-y-4">
-                  {accounts.filter(a => a.activeSubscription === 'tenant' || a.popImage || a.role === 'tenant').length > 0 ? (
-                    accounts.filter(a => a.activeSubscription === 'tenant' || a.popImage || a.role === 'tenant').map(acc => (
-                      <div key={acc.id} className="p-5 bg-white border border-slate-200 rounded-2xl space-y-4 shadow-sm">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className="text-xs font-bold text-slate-950">{acc.fullName || 'Verified Tenant'} (Become a Tenant - R299.99)</h4>
-                            <p className="text-[11px] text-slate-500">{acc.email} · Ref: <span className="font-mono font-bold text-blue-600">Ten29</span> (Capitec: 1334067366) · Unit: {acc.unitNumber || 'Unit 4B'}</p>
-                          </div>
-                          <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${
-                            acc.tenantPoPStatus === 'approved' 
-                              ? 'bg-emerald-100 text-emerald-800 border-emerald-200' 
-                              : acc.tenantPoPStatus === 'rejected' 
-                              ? 'bg-rose-100 text-rose-800 border-rose-200' 
-                              : 'bg-amber-100 text-amber-800 border-amber-200'
-                          }`}>
-                            {acc.tenantPoPStatus === 'approved' ? 'Approved & Paid' : acc.tenantPoPStatus === 'rejected' ? 'Rejected' : 'Pending Verification'}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
-                          <div>
-                            <span className="text-[11px] text-slate-400 font-medium block mb-1">User Profile Selfie (Click to view full screen)</span>
-                            {acc.selfieImage ? (
-                              <div 
-                                onClick={() => setLightboxImg(acc.selfieImage)}
-                                className="relative cursor-pointer group rounded-xl overflow-hidden border border-slate-200"
-                              >
-                                <img src={acc.selfieImage} alt="User Selfie" className="w-full h-32 object-cover group-hover:scale-105 transition-transform" />
-                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold gap-1">
-                                  <Eye className="w-4 h-4" /> Full Screen
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="w-full h-32 bg-slate-50 rounded-xl flex items-center justify-center text-xs text-slate-400">Not uploaded</div>
-                            )}
-                          </div>
-                          <div>
-                            <span className="text-[11px] text-slate-400 font-medium block mb-1">PoP Receipt Document (Click to view full screen)</span>
-                            {acc.popImage ? (
-                              <div 
-                                onClick={() => setLightboxImg(acc.popImage)}
-                                className="relative cursor-pointer group rounded-xl overflow-hidden border border-slate-200"
-                              >
-                                <img src={acc.popImage} alt="Tenant PoP" className="w-full h-32 object-cover group-hover:scale-105 transition-transform" />
-                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold gap-1">
-                                  <Eye className="w-4 h-4" /> Full Screen
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="w-full h-32 bg-slate-50 rounded-xl flex items-center justify-center text-xs text-slate-400">Not uploaded</div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Admin Action Buttons for Tenant PoP */}
-                        <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-                          <button 
-                            onClick={() => {
-                              updateAccountData(acc.id, { tenantPoPStatus: 'rejected' });
-                              setWelcomeToast(`Tenant PoP rejected for ${acc.fullName || acc.email}.`);
-                              setTimeout(() => setWelcomeToast(null), 3000);
-                            }}
-                            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                              acc.tenantPoPStatus === 'rejected' 
-                                ? 'bg-rose-600 text-white' 
-                                : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
-                            }`}
-                          >
-                            <XCircle className="w-3.5 h-3.5" />
-                            Reject PoP
-                          </button>
-                          <button 
-                            onClick={() => {
-                              updateAccountData(acc.id, { 
-                                tenantPoPStatus: 'approved',
-                                activeSubscription: 'tenant',
-                                subStep: 'complete'
-                              });
-                              setWelcomeToast(`Tenant PoP approved for ${acc.fullName || acc.email}! Active Tenants updated.`);
-                              setTimeout(() => setWelcomeToast(null), 3000);
-                            }}
-                            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                              acc.tenantPoPStatus === 'approved' 
-                                ? 'bg-emerald-700 text-white' 
-                                : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm'
-                            }`}
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            Approve PoP
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="p-8 bg-white border border-slate-200 rounded-2xl text-center text-xs text-slate-400">
-                      No tenant PoP records found. Tenants will appear here after selecting the tenant plan or uploading proof of payment.
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* USER POP TAB */}
-            {adminTab === 'user_pop' && (
-              <div className="space-y-6 max-w-5xl mx-auto">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">User Proof of Payment (PoP)</h3>
-                    <p className="text-xs text-slate-500">Capitec Bank transfer receipts and profile selfie records across user subscription accounts. Approve or reject user payments below.</p>
-                  </div>
-                  <span className="px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold rounded-xl">
-                    {activeUsersCount} Active Subscriber(s)
-                  </span>
-                </div>
-
-                <div className="space-y-4">
-                  {accounts.filter(a => a.activeSubscription === 'user' || a.popImage).length > 0 ? (
-                    accounts.filter(a => a.activeSubscription === 'user' || a.popImage).map(acc => (
-                      <div key={acc.id} className="p-5 bg-white border border-slate-200 rounded-2xl space-y-4 shadow-sm">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className="text-xs font-bold text-slate-950">{acc.fullName || 'Verified User'} (User Subscription - R29.99)</h4>
-                            <p className="text-[11px] text-slate-500">{acc.email} · Ref: <span className="font-mono font-bold text-blue-600">Ten29</span> (Capitec: 1334067366)</p>
-                          </div>
-                          <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${
-                            acc.userPoPStatus === 'approved' 
-                              ? 'bg-emerald-100 text-emerald-800 border-emerald-200' 
-                              : acc.userPoPStatus === 'rejected' 
-                              ? 'bg-rose-100 text-rose-800 border-rose-200' 
-                              : 'bg-amber-100 text-amber-800 border-amber-200'
-                          }`}>
-                            {acc.userPoPStatus === 'approved' ? 'Approved & Paid' : acc.userPoPStatus === 'rejected' ? 'Rejected' : 'Pending Verification'}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
-                          <div>
-                            <span className="text-[11px] text-slate-400 font-medium block mb-1">User Profile Selfie (Click to view full screen)</span>
-                            {acc.selfieImage ? (
-                              <div 
-                                onClick={() => setLightboxImg(acc.selfieImage)}
-                                className="relative cursor-pointer group rounded-xl overflow-hidden border border-slate-200"
-                              >
-                                <img src={acc.selfieImage} alt="User Selfie" className="w-full h-32 object-cover group-hover:scale-105 transition-transform" />
-                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold gap-1">
-                                  <Eye className="w-4 h-4" /> Full Screen
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="w-full h-32 bg-slate-50 rounded-xl flex items-center justify-center text-xs text-slate-400">Not uploaded</div>
-                            )}
-                          </div>
-                          <div>
-                            <span className="text-[11px] text-slate-400 font-medium block mb-1">PoP Receipt Document (Click to view full screen)</span>
-                            {acc.popImage ? (
-                              <div 
-                                onClick={() => setLightboxImg(acc.popImage)}
-                                className="relative cursor-pointer group rounded-xl overflow-hidden border border-slate-200"
-                              >
-                                <img src={acc.popImage} alt="User PoP" className="w-full h-32 object-cover group-hover:scale-105 transition-transform" />
-                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold gap-1">
-                                  <Eye className="w-4 h-4" /> Full Screen
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="w-full h-32 bg-slate-50 rounded-xl flex items-center justify-center text-xs text-slate-400">Not uploaded</div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Admin Action Buttons for User PoP */}
-                        <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-                          <button 
-                            onClick={() => {
-                              updateAccountData(acc.id, { userPoPStatus: 'rejected' });
-                              setWelcomeToast(`User PoP rejected for ${acc.fullName || acc.email}.`);
-                              setTimeout(() => setWelcomeToast(null), 3000);
-                            }}
-                            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                              acc.userPoPStatus === 'rejected' 
-                                ? 'bg-rose-600 text-white' 
-                                : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
-                            }`}
-                          >
-                            <XCircle className="w-3.5 h-3.5" />
-                            Reject PoP
-                          </button>
-                          <button 
-                            onClick={() => {
-                              updateAccountData(acc.id, { 
-                                userPoPStatus: 'approved',
-                                activeSubscription: 'user',
-                                subStep: 'complete'
-                              });
-                              setWelcomeToast(`User PoP approved for ${acc.fullName || acc.email}! Active Subscribers updated.`);
-                              setTimeout(() => setWelcomeToast(null), 3000);
-                            }}
-                            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                              acc.userPoPStatus === 'approved' 
-                                ? 'bg-emerald-700 text-white' 
-                                : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm'
-                            }`}
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            Approve PoP
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="p-8 bg-white border border-slate-200 rounded-2xl text-center text-xs text-slate-400">
-                      No user subscription PoP records found. Users will appear here after selecting the user subscription plan or uploading proof of payment.
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-          </div>
-
-          {/* Admin Bottom Menu Bar with Empty Line-Art Icons */}
-          <footer className="bg-white border-t border-slate-200 py-3 px-6 flex items-center justify-around shrink-0 shadow-lg">
-            <button 
-              onClick={() => setAdminTab('overview')}
-              className={`flex flex-col items-center gap-1 group focus:outline-none ${adminTab === 'overview' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
-            >
-              <BarChart3 className="w-6 h-6 stroke-[1.5]" />
-              <span className="text-xs font-semibold">Overview</span>
-            </button>
-            <button 
-              onClick={() => setAdminTab('verification')}
-              className={`flex flex-col items-center gap-1 group focus:outline-none ${adminTab === 'verification' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
-            >
-              <FileCheck className="w-6 h-6 stroke-[1.5]" />
-              <span className="text-xs font-semibold">Verification</span>
-            </button>
-            <button 
-              onClick={() => setAdminTab('tenant_pop')}
-              className={`flex flex-col items-center gap-1 group focus:outline-none ${adminTab === 'tenant_pop' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
-            >
-              <Receipt className="w-6 h-6 stroke-[1.5]" />
-              <span className="text-xs font-semibold">Tenant PoP</span>
-            </button>
-            <button 
-              onClick={() => setAdminTab('user_pop')}
-              className={`flex flex-col items-center gap-1 group focus:outline-none ${adminTab === 'user_pop' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
-            >
-              <DollarSign className="w-6 h-6 stroke-[1.5]" />
-              <span className="text-xs font-semibold">User PoP</span>
-            </button>
-          </footer>
-
-        </div>
-      )}
-
-      {/* ACTIVE TENANTS LIST MODAL (View all active tenants) */}
-      {activeTenantsModalOpen && (
-        <div className="fixed inset-0 z-[55] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-xl p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-slate-900">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center border border-indigo-200">
-                  <Home className="w-5 h-5 text-indigo-600 stroke-[1.5]" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">Active Tenants Directory</h3>
-                  <p className="text-xs text-slate-500">{activeTenantsCount} verified tenant(s) active</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setActiveTenantsModalOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
-              {activeTenantsList.length > 0 ? (
-                activeTenantsList.map(tenant => (
-                  <div key={tenant.id} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      {tenant.selfieImage ? (
-                        <img 
-                          src={tenant.selfieImage} 
-                          alt="Tenant" 
-                          onClick={() => setLightboxImg(tenant.selfieImage)}
-                          className="w-12 h-12 rounded-xl object-cover border border-slate-200 cursor-pointer shadow-sm hover:opacity-90" 
-                          title="Click to view full screen"
-                        />
-                      ) : (
-                        <div className="w-12 h-12 bg-slate-200 rounded-xl flex items-center justify-center text-slate-500 text-xs font-bold">
-                          {tenant.fullName ? tenant.fullName.slice(0, 2).toUpperCase() : 'TN'}
-                        </div>
-                      )}
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-900">{tenant.fullName || 'Verified Tenant'}</h4>
-                        <p className="text-[11px] text-slate-500">{tenant.email || 'No email'} · {tenant.phone || 'No phone'}</p>
-                        <div className="text-[10px] text-slate-400 mt-0.5">Plan: Become a Tenant (R299.99/mo) · Ref: Ten29</div>
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-[11px] font-semibold rounded-lg block mb-1">
-                        Active Tenant
-                      </span>
-                      <span className="text-[10px] text-slate-500">{tenant.unitNumber || 'Unit 4B'}</span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="p-8 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl">
-                  No active tenants currently approved. Tenant will appear here once PoP is approved in Tenant PoP.
                 </div>
               )}
+
             </div>
 
-            <div className="pt-2 border-t border-slate-100 flex justify-end">
-              <button 
-                onClick={() => setActiveTenantsModalOpen(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-xl transition-colors"
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end">
+              <button
+                onClick={() => setTenantModalOpen(false)}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors"
               >
-                Close Directory
+                Close Portal
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ACTIVE SUBSCRIPTION USERS LIST MODAL (View all active users) */}
-      {activeUsersModalOpen && (
-        <div className="fixed inset-0 z-[55] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-xl p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-slate-900">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center border border-indigo-200">
-                  <Users className="w-5 h-5 text-indigo-600 stroke-[1.5]" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">Active Subscription Users Directory</h3>
-                  <p className="text-xs text-slate-500">{activeUsersCount} standard subscriber(s) active</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setActiveUsersModalOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
-              {activeUsersList.length > 0 ? (
-                activeUsersList.map(u => (
-                  <div key={u.id} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      {u.selfieImage ? (
-                        <img 
-                          src={u.selfieImage} 
-                          alt="Subscriber" 
-                          onClick={() => setLightboxImg(u.selfieImage)}
-                          className="w-12 h-12 rounded-xl object-cover border border-slate-200 cursor-pointer shadow-sm hover:opacity-90" 
-                          title="Click to view full screen"
-                        />
-                      ) : (
-                        <div className="w-12 h-12 bg-slate-200 rounded-xl flex items-center justify-center text-slate-500 text-xs font-bold">
-                          {u.fullName ? u.fullName.slice(0, 2).toUpperCase() : 'US'}
-                        </div>
-                      )}
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-900">{u.fullName || 'Verified User'}</h4>
-                        <p className="text-[11px] text-slate-500">{u.email || 'No email'} · {u.phone || 'No phone'}</p>
-                        <div className="text-[10px] text-slate-400 mt-0.5">Plan: User Subscription (R29.99/mo) · Ref: Ten29</div>
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-[11px] font-semibold rounded-lg block mb-1">
-                        Active User
-                      </span>
-                      <span className="text-[10px] text-slate-500">Standard Plan</span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="p-8 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl">
-                  No active users currently approved. User will appear here once PoP is approved in User PoP.
-                </div>
-              )}
-            </div>
-
-            <div className="pt-2 border-t border-slate-100 flex justify-end">
-              <button 
-                onClick={() => setActiveUsersModalOpen(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-xl transition-colors"
-              >
-                Close Directory
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* FULL SCREEN LIGHTBOX MODAL FOR ADMIN & TENANT PORTAL */}
-      {lightboxImg && (
-        <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="relative max-w-4xl max-h-[90vh] flex flex-col items-center">
-            <button 
-              onClick={() => setLightboxImg(null)}
-              className="absolute -top-12 right-0 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
-            <img src={lightboxImg} alt="Full Screen View" className="max-w-full max-h-[80vh] object-contain rounded-2xl border border-white/20 shadow-2xl" />
-            <span className="text-white text-xs mt-3 font-medium">Full-Screen Document Inspection</span>
-          </div>
-        </div>
-      )}
-
-      {/* PROFILE & VERIFICATION WIZARD MODAL */}
-      {profileModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-md p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-slate-900">
-            
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center border border-indigo-200">
-                  <ShieldCheck className="w-5 h-5 text-indigo-600 stroke-[1.5]" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">
-                    {subStep === 'complete' ? 'Profile & Subscription' : (isApproved || isSpecialUser) ? 'Capitec Bank Transfer & PoP' : 'Complete Your Profile'}
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    {subStep === 'complete' ? 'Subscription active & locked' : (isApproved || isSpecialUser) ? 'Bank Transfer Details' : `Step ${profileStep} of 4: KYC Verification`}
-                  </p>
-                </div>
-              </div>
-              <button 
-                onClick={() => { setProfileModalOpen(false); stopCamera(); }}
-                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {subStep === 'complete' ? (
-              <div className="space-y-5 py-2 text-center">
-                <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner border border-emerald-200">
-                  <CheckCircle2 className="w-8 h-8 stroke-[1.5]" />
-                </div>
-
-                <div>
-                  <h4 className="text-base font-bold text-slate-900">{fullName || 'Verified User'}</h4>
-                  <p className="text-xs text-slate-500 mt-0.5">{email} · {phone || 'Verified Phone'}</p>
-                </div>
-
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-left space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500">KYC Status:</span>
-                    <span className="text-emerald-600 font-bold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Approved</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500">Active Subscription:</span>
-                    <span className="text-indigo-600 font-bold uppercase">{activeSubscription ? (activeSubscription === 'tenant' ? 'Become a Tenant (R299.99)' : 'User Subscription (R29.99)') : 'None'}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500">Proof of Payment:</span>
-                    <span className={`font-bold flex items-center gap-1 ${
-                      (activeSubscription === 'tenant' ? tenantPoPStatus : userPoPStatus) === 'approved'
-                        ? 'text-emerald-600'
-                        : (activeSubscription === 'tenant' ? tenantPoPStatus : userPoPStatus) === 'rejected'
-                        ? 'text-rose-600'
-                        : 'text-amber-600'
-                    }`}>
-                      {(activeSubscription === 'tenant' ? tenantPoPStatus : userPoPStatus) === 'approved' 
-                        ? 'Verified & Approved' 
-                        : (activeSubscription === 'tenant' ? tenantPoPStatus : userPoPStatus) === 'rejected'
-                        ? 'Rejected by Admin'
-                        : 'Submitted (Pending Review)'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500">Subscription Status:</span>
-                    <span className="text-amber-600 font-bold">Locked Until Expiry (Nov 2026)</span>
-                  </div>
-                </div>
-
-                <button 
-                  onClick={() => setProfileModalOpen(false)}
-                  className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl text-xs transition-colors shadow-sm"
-                >
-                  Close Profile
-                </button>
-              </div>
-            ) : isApproved ? (
-              <>
-                {subStep === 'choose' && (
-                  <div className="space-y-5 py-2">
-                    <div className="text-center">
-                      <h4 className="text-base font-bold text-slate-900">Choose Your Monthly Subscription</h4>
-                      <p className="text-xs text-slate-500 mt-1">Select one subscription plan to view Capitec Bank transfer details.</p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 pt-2">
-                      <div 
-                        onClick={() => setSelectedSubscription('tenant')}
-                        className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center text-center space-y-2 cursor-pointer ${selectedSubscription === 'tenant' ? 'border-indigo-600 bg-indigo-50/50 shadow-md' : 'border-slate-200 bg-slate-50'}`}
-                      >
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${selectedSubscription === 'tenant' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
-                          {selectedSubscription === 'tenant' ? <Check className="w-4 h-4" /> : <CreditCard className="w-4 h-4" />}
-                        </div>
-                        <div>
-                          <h5 className="text-xs font-bold text-slate-900">Become a Tenant</h5>
-                          <p className="text-[10px] text-indigo-600 font-bold mt-0.5">R299.99 / month</p>
-                          <span className="text-[9px] text-emerald-600 font-semibold block mt-1">Includes personal invite link!</span>
-                        </div>
-                      </div>
-
-                      <div 
-                        onClick={() => setSelectedSubscription('user')}
-                        className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center text-center space-y-2 cursor-pointer ${selectedSubscription === 'user' ? 'border-indigo-600 bg-indigo-50/50 shadow-md' : 'border-slate-200 bg-slate-50'}`}
-                      >
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${selectedSubscription === 'user' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
-                          {selectedSubscription === 'user' ? <Check className="w-4 h-4" /> : <CreditCard className="w-4 h-4" />}
-                        </div>
-                        <div>
-                          <h5 className="text-xs font-bold text-slate-900">User Subscription</h5>
-                          <p className="text-[10px] text-indigo-600 font-bold mt-0.5">R29.99 / month</p>
-                          <span className="text-[9px] text-slate-400 block mt-1">Standard profile access</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {(isSpecialUser || email === 'timegig2026@gmail.com') && (
-                      <button 
-                        onClick={() => {
-                          setActiveSubscription('tenant');
-                          setTenantPoPStatus('approved');
-                          setSubStep('complete');
-                          setPortalActivated(true);
-                          setProfileModalOpen(false);
-                          setWelcomeToast('timegig2026 privilege: Tenant subscription activated with personal invite link!');
-                          setTimeout(() => setWelcomeToast(null), 3500);
-                        }}
-                        className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-xs transition-colors shadow-sm flex items-center justify-center gap-1.5"
-                      >
-                        <Sparkles className="w-4 h-4" />
-                        <span>Instant Skip & Activate (timegig2026@gmail.com)</span>
-                      </button>
-                    )}
-
-                    <button 
-                      onClick={() => {
-                        if (!selectedSubscription) {
-                          alert('Please select a subscription option.');
-                          return;
-                        }
-                        setActiveSubscription(selectedSubscription);
-                        setSubStep('payment');
-                      }}
-                      disabled={!selectedSubscription}
-                      className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition-colors shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                      <span>Proceed to Bank Transfer Instructions</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-
-                {subStep === 'payment' && (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3 p-4 bg-indigo-50 border border-indigo-200 rounded-2xl">
-                      <Building2 className="w-8 h-8 text-indigo-600 shrink-0" />
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-900">Capitec Bank Transfer</h4>
-                        <p className="text-[11px] text-slate-600">Please transfer <span className="font-bold text-indigo-700">{activeSubscription === 'tenant' ? 'R299.99' : 'R29.99'}</span> using the banking details below.</p>
-                      </div>
-                    </div>
-
-                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2.5 text-xs">
-                      <div className="flex justify-between items-center"><span className="text-slate-500">Bank:</span> <span className="font-bold text-slate-900">Capitec</span></div>
-                      <div className="flex justify-between items-center"><span className="text-slate-500">Account Name:</span> <span className="font-bold text-slate-900">Matthews</span></div>
-                      <div className="flex justify-between items-center"><span className="text-slate-500">Account Number:</span> <span className="font-mono font-bold text-slate-900">1334067366</span></div>
-                      <div className="flex justify-between items-center"><span className="text-slate-500">Reference:</span> <span className="font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200">Ten29</span></div>
-                    </div>
-
-                    <div className="flex items-center gap-3 pt-2">
-                      <button 
-                        onClick={() => setSubStep('choose')}
-                        className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition-colors"
-                      >
-                        <ArrowLeft className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => setSubStep('pop_upload')}
-                        className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition-colors shadow-sm flex items-center justify-center gap-2"
-                      >
-                        <span>Next: Upload Proof of Payment (PoP)</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {subStep === 'pop_upload' && (
-                  <div className="space-y-4">
-                    <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Upload Proof of Payment (PoP)</h4>
-                    <p className="text-xs text-slate-500">Upload your Capitec transfer receipt showing reference <span className="font-bold text-blue-600">Ten29</span>.</p>
-
-                    <div className="flex flex-col items-center justify-center">
-                      {popImage ? (
-                        <div className="relative w-full h-48 rounded-2xl overflow-hidden border border-slate-200 bg-slate-100">
-                          <img src={popImage} alt="PoP Preview" className="w-full h-full object-cover" />
-                          <button 
-                            onClick={() => setPopImage(null)}
-                            className="absolute bottom-2 right-2 px-3 py-1 bg-red-600 text-white text-xs rounded-lg shadow"
-                          >
-                            Change PoP
-                          </button>
-                        </div>
-                      ) : (
-                        <label className="w-full h-48 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center space-y-3 p-4 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors">
-                          <Upload className="w-8 h-8 text-slate-400" />
-                          <span className="text-xs text-slate-600 font-medium">Click to upload transfer receipt from device</span>
-                          <span className="text-[10px] text-slate-400">Supports PNG, JPG, PDF up to 10MB</span>
-                          <input type="file" accept="image/*,.pdf" onChange={(e) => handleFileUpload(e, 'pop')} className="hidden" />
-                        </label>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-3 pt-2">
-                      <button 
-                        onClick={() => setSubStep('payment')}
-                        className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition-colors"
-                      >
-                        <ArrowLeft className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => {
-                          if (!popImage) {
-                            alert('Please upload your Proof of Payment receipt.');
-                            return;
-                          }
-                          setSubStep('complete');
-                          if (activeSubscription === 'tenant') {
-                            setTenantPoPStatus('pending');
-                          } else {
-                            setUserPoPStatus('pending');
-                          }
-                          setProfileModalOpen(false);
-                          if (activeSubscription === 'tenant') {
-                            alert('Capitec Transfer PoP submitted successfully! Admin will receive it in Tenant PoP for approval.');
-                          } else {
-                            alert('Capitec Transfer PoP submitted successfully! Admin will receive it in User PoP for approval.');
-                          }
-                        }}
-                        disabled={!popImage}
-                        className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl text-xs transition-colors shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
-                      >
-                        <ShieldCheck className="w-4 h-4" />
-                        <span>Submit Proof of Payment</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <>
-                {profileStep < 5 && (
-                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div 
-                      className="bg-indigo-600 h-full transition-all duration-300"
-                      style={{ width: `${(profileStep / 4) * 100}%` }}
-                    ></div>
-                  </div>
-                )}
-
-                {profileStep === 1 && (
-                  <div className="space-y-4">
-                    <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Personal Information</h4>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Full Legal Name</label>
-                        <input 
-                          type="text" 
-                          value={fullName}
-                          onChange={(e) => setFullName(e.target.value)}
-                          placeholder="e.g. Jane Doe"
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Phone Number</label>
-                        <input 
-                          type="tel" 
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          placeholder="+1 (555) 000-0000"
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Email Address</label>
-                        <input 
-                          type="email" 
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          placeholder="jane@example.com"
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="pt-3">
-                      <button 
-                        onClick={() => {
-                          if (!fullName || !email) {
-                            alert('Please fill in your name and email.');
-                            return;
-                          }
-                          setProfileStep(2);
-                        }}
-                        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition-colors shadow-sm flex items-center justify-center gap-2"
-                      >
-                        <span>Next: Face Selfie</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {profileStep === 2 && (
-                  <div className="space-y-4">
-                    <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Face Selfie Verification</h4>
-                    <p className="text-xs text-slate-500">Capture a live selfie or upload an image file from your device.</p>
-
-                    {cameraError && (
-                      <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs">
-                        {cameraError}
-                      </div>
-                    )}
-
-                    <div className="flex flex-col items-center justify-center space-y-3">
-                      {selfieImage ? (
-                        <div className="relative w-full h-48 rounded-2xl overflow-hidden border border-slate-200 bg-slate-100">
-                          <img src={selfieImage} alt="Selfie Preview" className="w-full h-full object-cover" />
-                          <button 
-                            onClick={() => setSelfieImage(null)}
-                            className="absolute bottom-2 right-2 px-3 py-1 bg-red-600 text-white text-xs rounded-lg shadow"
-                          >
-                            Retake
-                          </button>
-                        </div>
-                      ) : cameraActive ? (
-                        <div className="relative w-full h-48 rounded-2xl overflow-hidden border border-slate-200 bg-black">
-                          <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
-                          <button 
-                            onClick={captureSelfie}
-                            className="absolute bottom-3 left-1/2 -translate-x-1/2 px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-xl shadow-lg flex items-center gap-2"
-                          >
-                            <Camera className="w-4 h-4" />
-                            Capture Photo
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="w-full h-48 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center space-y-3 p-4 bg-slate-50">
-                          <Camera className="w-8 h-8 text-slate-400" />
-                          <div className="flex flex-wrap items-center justify-center gap-2">
-                            <button 
-                              onClick={startCamera}
-                              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition-colors shadow-sm"
-                            >
-                              Use Camera
-                            </button>
-                            <button 
-                              onClick={useSampleSelfie}
-                              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl transition-colors shadow-sm"
-                            >
-                              Use Sample Selfie
-                            </button>
-                            <label className="px-3.5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-xl transition-colors cursor-pointer">
-                              Upload File
-                              <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'selfie')} className="hidden" />
-                            </label>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-3 pt-2">
-                      <button 
-                        onClick={() => { stopCamera(); setProfileStep(1); }}
-                        className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition-colors"
-                      >
-                        <ArrowLeft className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => {
-                          if (!selfieImage) {
-                            alert('Please capture or upload your face selfie.');
-                            return;
-                          }
-                          setProfileStep(3);
-                        }}
-                        className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition-colors shadow-sm flex items-center justify-center gap-2"
-                      >
-                        <span>Next: ID Document</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {profileStep === 3 && (
-                  <div className="space-y-4">
-                    <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">ID Document Upload</h4>
-                    <p className="text-xs text-slate-500">Upload a clear photo of your government-issued ID, driver's license, or passport.</p>
-
-                    <div className="flex flex-col items-center justify-center">
-                      {idDocumentImage ? (
-                        <div className="relative w-full h-48 rounded-2xl overflow-hidden border border-slate-200 bg-slate-100">
-                          <img src={idDocumentImage} alt="ID Document Preview" className="w-full h-full object-cover" />
-                          <button 
-                            onClick={() => setIdDocumentImage(null)}
-                            className="absolute bottom-2 right-2 px-3 py-1 bg-red-600 text-white text-xs rounded-lg shadow"
-                          >
-                            Change ID
-                          </button>
-                        </div>
-                      ) : (
-                        <label className="w-full h-48 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center space-y-3 p-4 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors">
-                          <Upload className="w-8 h-8 text-slate-400" />
-                          <span className="text-xs text-slate-600 font-medium">Click to upload ID document from device</span>
-                          <span className="text-[10px] text-slate-400">Supports PNG, JPG, PDF up to 10MB</span>
-                          <input type="file" accept="image/*,.pdf" onChange={(e) => handleFileUpload(e, 'id')} className="hidden" />
-                        </label>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-3 pt-2">
-                      <button 
-                        onClick={() => setProfileStep(2)}
-                        className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition-colors"
-                      >
-                        <ArrowLeft className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => {
-                          if (!idDocumentImage) {
-                            alert('Please upload your ID document.');
-                            return;
-                          }
-                          setProfileStep(4);
-                        }}
-                        className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition-colors shadow-sm flex items-center justify-center gap-2"
-                      >
-                        <span>Next: Review & Submit</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {profileStep === 4 && (
-                  <div className="space-y-4">
-                    <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Review Verification Details</h4>
-                    
-                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2 text-xs">
-                      <div className="flex justify-between"><span className="text-slate-500">Name:</span> <span className="font-semibold text-slate-900">{fullName}</span></div>
-                      <div className="flex justify-between"><span className="text-slate-500">Phone:</span> <span className="font-semibold text-slate-900">{phone || 'N/A'}</span></div>
-                      <div className="flex justify-between"><span className="text-slate-500">Email:</span> <span className="font-semibold text-slate-900">{email}</span></div>
-                      <div className="flex justify-between items-center pt-2 border-t border-slate-200">
-                        <span className="text-slate-500">Selfie & ID:</span>
-                        <span className="text-emerald-600 font-semibold flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Uploaded
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 pt-2">
-                      <button 
-                        onClick={() => setProfileStep(3)}
-                        className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition-colors"
-                      >
-                        <ArrowLeft className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={handleFinalSubmit}
-                        disabled={isSubmitting}
-                        className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl text-xs transition-colors shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
-                      >
-                        {isSubmitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-                        <span>{isSubmitting ? 'Verifying Documents...' : 'Submit Verification'}</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
 
           </div>
         </div>
       )}
 
-      {/* SEEKERS FEATURE MODAL (Only online seekers ready to be hired + Search bar) */}
-      {seekersModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-lg p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-slate-900 max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-50 text-indigo-700 rounded-xl flex items-center justify-center border border-indigo-200">
-                  <Search className="w-5 h-5 stroke-[1.5]" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">Seekers Directory</h3>
-                  <p className="text-xs text-slate-500">Showing only online seekers ready to be hired</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setSeekersModalOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {/* FLOATING STATUS TOAST */}
+      {statusMessage && (
+        <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 text-white backdrop-blur-md px-3.5 py-2 rounded-xl shadow-2xl text-[11px] font-semibold animate-in fade-in slide-in-from-bottom-2 border border-white/10 flex items-center gap-2 max-w-xs sm:max-w-md text-center">
+          <Sparkles className="w-3 h-3 text-emerald-400 shrink-0" />
+          <span className="truncate">{statusMessage}</span>
+        </div>
+      )}
 
-            {/* Same Search Bar as map */}
-            <div className="relative shrink-0">
-              <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
-              <input 
-                type="text"
-                value={seekerSearchQuery}
-                onChange={(e) => setSeekerSearchQuery(e.target.value)}
-                placeholder="Search online seekers ready to be hired..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 shadow-sm"
+      {/* COMPACT SEE-THROUGH BOTTOM MENU BAR WITH 3D ICONS */}
+      <nav className="fixed bottom-0 inset-x-0 z-50 bg-white/80 backdrop-blur-xl border-t border-white/60 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] py-1.5 px-4 flex items-center justify-around">
+        
+        {/* SEEKERS 3D BUTTON */}
+        <button
+          onClick={() => setActiveTab('seekers')}
+          className="flex flex-col items-center gap-0.5 group focus:outline-none transition-transform active:translate-y-0.5"
+          title="Seekers"
+        >
+          <div
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+              activeTab === 'seekers'
+                ? 'bg-gradient-to-b from-sky-400 to-blue-600 text-white border-t border-white/60 shadow-[0_3px_0_0_#0369a1,0_6px_10px_rgba(2,132,199,0.35)] translate-y-0.5'
+                : 'bg-gradient-to-b from-white to-slate-100 text-slate-700 border border-slate-200/90 shadow-[0_3px_0_0_#cbd5e1,0_4px_6px_rgba(0,0,0,0.05)] hover:from-slate-50 hover:to-slate-100'
+            }`}
+          >
+            <Search className="w-4 h-4 stroke-[2.2] drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]" />
+          </div>
+          <span
+            className={`text-[9px] font-bold tracking-tight transition-colors ${
+              activeTab === 'seekers' ? 'text-sky-600 font-black' : 'text-slate-600 group-hover:text-slate-900'
+            }`}
+          >
+            Seekers
+          </span>
+        </button>
+
+        {/* GIGS 3D BUTTON */}
+        <button
+          onClick={() => setActiveTab('gigs')}
+          className="flex flex-col items-center gap-0.5 group focus:outline-none transition-transform active:translate-y-0.5"
+          title="GiGs Map View"
+        >
+          <div
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+              activeTab === 'gigs'
+                ? 'bg-gradient-to-b from-blue-500 to-indigo-700 text-white border-t border-white/60 shadow-[0_3px_0_0_#1e1b4b,0_6px_10px_rgba(37,99,235,0.35)] translate-y-0.5'
+                : 'bg-gradient-to-b from-white to-slate-100 text-slate-700 border border-slate-200/90 shadow-[0_3px_0_0_#cbd5e1,0_4px_6px_rgba(0,0,0,0.05)] hover:from-slate-50 hover:to-slate-100'
+            }`}
+          >
+            <Briefcase className="w-4 h-4 stroke-[2.2] drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]" />
+          </div>
+          <span
+            className={`text-[9px] font-bold tracking-tight transition-colors ${
+              activeTab === 'gigs' ? 'text-blue-600 font-black' : 'text-slate-600 group-hover:text-slate-900'
+            }`}
+          >
+            GiGs
+          </span>
+        </button>
+
+        {/* PROFILE 3D BUTTON */}
+        <button
+          onClick={() => setActiveTab('profile')}
+          className="flex flex-col items-center gap-0.5 group focus:outline-none transition-transform active:translate-y-0.5"
+          title="Profile Setup"
+        >
+          <div
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+              activeTab === 'profile'
+                ? 'bg-gradient-to-b from-purple-500 to-indigo-700 text-white border-t border-white/60 shadow-[0_3px_0_0_#3b0764,0_6px_10px_rgba(147,51,234,0.35)] translate-y-0.5'
+                : 'bg-gradient-to-b from-white to-slate-100 text-slate-700 border border-slate-200/90 shadow-[0_3px_0_0_#cbd5e1,0_4px_6px_rgba(0,0,0,0.05)] hover:from-slate-50 hover:to-slate-100'
+            }`}
+          >
+            {profileData.avatarImage ? (
+              <img
+                src={profileData.avatarImage}
+                alt="Avatar"
+                className="w-7 h-7 rounded-lg object-cover border border-white/40 shadow-inner"
               />
-            </div>
-
-            {/* Online Seekers List */}
-            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-              {seekers
-                .filter(s => s.isOnline && s.readyToBeHired)
-                .filter(s => seekerSearchQuery.trim() === '' || s.name.toLowerCase().includes(seekerSearchQuery.toLowerCase()))
-                .map(seeker => (
-                  <div key={seeker.id} className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-indigo-100 text-indigo-700 font-bold rounded-xl flex items-center justify-center text-xs">
-                        {seeker.name.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-xs font-bold text-slate-900">{seeker.name}</h4>
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" title="Online" />
-                          <span className="text-[10px] text-emerald-600 font-semibold">Online</span>
-                        </div>
-                        <span className="text-[10px] text-slate-500">Ready to be hired immediately</span>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={() => {
-                        setWelcomeToast(`Hiring request sent to ${seeker.name}!`);
-                        setTimeout(() => setWelcomeToast(null), 3000);
-                      }}
-                      className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors"
-                    >
-                      Hire
-                    </button>
-                  </div>
-                ))}
-              {seekers
-                .filter(s => s.isOnline && s.readyToBeHired)
-                .filter(s => seekerSearchQuery.trim() === '' || s.name.toLowerCase().includes(seekerSearchQuery.toLowerCase()))
-                .length === 0 && (
-                  <div className="p-8 text-center text-xs text-slate-400">
-                    No online seekers match your search query.
-                  </div>
-                )}
-            </div>
+            ) : (
+              <User className="w-4 h-4 stroke-[2.2] drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]" />
+            )}
           </div>
-        </div>
-      )}
+          <span
+            className={`text-[9px] font-bold tracking-tight transition-colors ${
+              activeTab === 'profile' ? 'text-purple-600 font-black' : 'text-slate-600 group-hover:text-slate-900'
+            }`}
+          >
+            Profile
+          </span>
+        </button>
+
+      </nav>
 
     </div>
   );
