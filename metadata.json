@@ -1,0 +1,6 @@
+{
+  "name": "GeoPulse OSM Navigator",
+  "description": "Interactive OpenStreetMap location viewer and smart explorer with exact GPS positioning and AI travel assistant.",
+  "requestFramePermissions": ["geolocation", "camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
