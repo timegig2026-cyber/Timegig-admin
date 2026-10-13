@@ -92,6 +92,7 @@ export default function App() {
   const [authEmail, setAuthEmail] = useState<string>(() => {
     return activeAccount?.email || localStorage.getItem('geopulse_auth_email') || '';
   });
+  const isSpecialUser = authEmail === 'timegig2026@gmail.com';
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
   const [inputEmail, setInputEmail] = useState('');
@@ -800,7 +801,7 @@ export default function App() {
           title={isLoggedIn ? 'Account Settings' : 'Log In / Sign Up'}
         >
           <div className="w-9 h-9 flex items-center justify-center transition-colors">
-            {isLoggedIn && isApproved && selfieImage ? (
+            {isLoggedIn && (isApproved || isSpecialUser) && selfieImage ? (
               <img src={selfieImage} alt="Profile" className="w-9 h-9 rounded-full object-cover border-2 border-emerald-500" />
             ) : isLoggedIn ? (
               <UserCheck className="w-6 h-6 text-emerald-600 stroke-[1.5]" />
@@ -2112,10 +2113,10 @@ export default function App() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900">
-                    {subStep === 'complete' ? 'Profile & Subscription' : isApproved ? 'Capitec Bank Transfer & PoP' : 'Complete Your Profile'}
+                    {subStep === 'complete' ? 'Profile & Subscription' : (isApproved || isSpecialUser) ? 'Capitec Bank Transfer & PoP' : 'Complete Your Profile'}
                   </h3>
                   <p className="text-xs text-slate-500">
-                    {subStep === 'complete' ? 'Subscription active & locked' : isApproved ? 'Bank Transfer Details' : `Step ${profileStep} of 4: KYC Verification`}
+                    {subStep === 'complete' ? 'Subscription active & locked' : (isApproved || isSpecialUser) ? 'Bank Transfer Details' : `Step ${profileStep} of 4: KYC Verification`}
                   </p>
                 </div>
               </div>
