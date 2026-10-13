@@ -742,6 +742,16 @@ export default function App() {
 
       {/* Zoom Feature & Satellite Icon (Moved to middle-right, away from search bar) */}
       <div className="absolute right-4 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-2 shadow-xl">
+        {(portalActivated || email === 'timegig2026@gmail.com') && (
+          <button 
+            onClick={() => setTenantPortalOpen(true)}
+            className="w-11 h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl flex items-center justify-center border border-emerald-700 shadow-md transition-all focus:outline-none"
+            title="Tenant Portal"
+          >
+            <Home className="w-5 h-5 stroke-[1.5]" />
+          </button>
+        )}
+
         <button 
           onClick={() => mapInstanceRef.current?.zoomIn()}
           className="w-11 h-11 bg-white hover:bg-slate-50 text-slate-700 rounded-2xl flex items-center justify-center border border-slate-200 shadow-md transition-all focus:outline-none"
@@ -763,16 +773,6 @@ export default function App() {
         >
           <Globe className="w-5 h-5 stroke-[1.5]" />
         </button>
-
-        {portalActivated && (
-          <button 
-            onClick={() => setTenantPortalOpen(true)}
-            className="w-11 h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl flex items-center justify-center border border-emerald-700 shadow-md transition-all focus:outline-none"
-            title="Tenant Portal"
-          >
-            <Home className="w-5 h-5 stroke-[1.5]" />
-          </button>
-        )}
 
         {email === 'timegig2026@gmail.com' && (
           <button 
