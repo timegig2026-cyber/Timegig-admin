@@ -648,7 +648,7 @@ export default function App() {
   const totalProfit = tenantProfit + userProfit;
 
   return (
-    <div className="w-screen h-screen overflow-hidden relative bg-white font-sans text-slate-900">
+    <div className="w-full h-[100dvh] overflow-hidden relative bg-white font-sans text-slate-900">
       
       {/* Welcome Toast Notification Banner */}
       {welcomeToast && (
@@ -743,7 +743,7 @@ export default function App() {
       <div ref={mapContainerRef} className="w-full absolute inset-0 bottom-20 z-0" />
 
       {/* DOCKED WHITE BOTTOM MENU BAR (Smaller, colored icons, selfie on account) */}
-      <div className="absolute bottom-0 inset-x-0 bg-white border-t border-slate-200 py-2 px-4 shadow-xl z-30 flex items-center justify-around">
+      <div className="fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 py-2 px-4 shadow-xl z-30 flex items-center justify-around">
         
         {/* LOGIN / ACCOUNT ICON (With Selfie) */}
         <button 
